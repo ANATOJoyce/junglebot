@@ -34,7 +34,7 @@ import { Readable } from 'stream';
 import { StoreService } from 'src/store/store.service';
 import { v2 as cloudinary } from 'cloudinary';
 import { CloudinaryService } from './cloudinary.service';
-
+import Fuse from 'fuse.js';
 
 @Injectable()
 export class ProductService {
@@ -366,40 +366,57 @@ async getProductsWithFilters(
 
 //produit filter par prix et par variants
 
-async getProductsByVariantAndPrice(
-  storeId: string,
-  filters: { minPrice?: number; maxPrice?: number; size?: string; color?: string }
-) {
-  const query: any = { storeId };
+  async getProductsByVariantAndPrice(
+    storeId: string,
+    filters: { minPrice?: number; maxPrice?: number; size?: string; color?: string }
+  ) {
+    const query: any = { storeId };
 
-  // Filtrer par prix (dans les variantes)
-  if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
-    query['variants.price'] = {};
-    if (filters.minPrice !== undefined) {
-      query['variants.price'].$gte = filters.minPrice;
+    // Filtrer par prix (dans les variantes)
+    if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
+      query['variants.price'] = {};
+      if (filters.minPrice !== undefined) {
+        query['variants.price'].$gte = filters.minPrice;
+      }
+      if (filters.maxPrice !== undefined) {
+        query['variants.price'].$lte = filters.maxPrice;
+      }
     }
-    if (filters.maxPrice !== undefined) {
-      query['variants.price'].$lte = filters.maxPrice;
+
+    // Filtrer par taille
+    if (filters.size) {
+      query['variants.size'] = filters.size;
     }
+
+    // Filtrer par couleur
+    if (filters.color) {
+      query['variants.color'] = filters.color;
+    }
+
+    return this.productModel.find(query).exec();
   }
 
-  // Filtrer par taille
-  if (filters.size) {
-    query['variants.size'] = filters.size;
-  }
+async searchProductsByTitleFuzzy(query: string) {
+    if (!query || query.trim() === '') {
+      throw new Error('Le mot-clé est requis.');
+    }
 
-  // Filtrer par couleur
-  if (filters.color) {
-    query['variants.color'] = filters.color;
-  }
+    const products = await this.productModel
+      .find()
+      .select('title description imageUrl price variants')
+      .lean()
+      .exec();
 
-  return this.productModel.find(query).exec();
+    const fuse = new Fuse(products, {
+      keys: ['title'],
+      threshold: 0.4,
+      distance: 100,
+      includeScore: true,
+    });
+
+    const results = fuse.search(query);
+    return results.map(r => r.item);
 }
-
-
-    async getAllPublicProducts() {
-    return this.productModel.find().select('title description imageUrl price variants').exec();
-  }
 
 
   async remove(id: string): Promise<void> {

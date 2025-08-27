@@ -174,13 +174,11 @@ async filterProducts(
   });
 }
 
-
-
-
-  @Get('public')
-  async getAllPublicProducts() {
-    return this.productService.getAllPublicProducts();
+  @Get('search')
+  async search(@Query('title') title: string) {
+    return this.productService.searchProductsByTitleFuzzy(title);
   }
+
 
   @Get()
   async getAllProduct(){
