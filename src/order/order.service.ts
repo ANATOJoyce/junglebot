@@ -1,426 +1,154 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-
+import { CreateOrderDto } from './dto/create-order.dto';
+import { UpdateOrderDto } from './dto/update-order.dto';
 import { Order, OrderDocument } from './entities/CommandePrincipale/order.entity';
-import { OrderTransaction, OrderTransactionDocument } from './entities/Transaction/transaction.entity';
-import { CreateOrderChangeActionDTO } from './dto/create-order-change-action.dto';
-import { PaymentService } from 'src/payment/payment.service';
-import { CreatePaymentDto } from 'src/payment/dto/create-payment.dto';
-import { OrderStatus } from './order-status.enum';
-import { OrderItem, OrderItemDocument } from './entities/CommandePrincipale/order-item.entity';
-import { OrderLineItemAdjustment } from './entities/Taxes&Adjustments/line-item-adjustment.entity';
-import { OrderLineItemTaxLine } from './entities/Taxes&Adjustments/line-item-tax-line.entity';
-import { OrderCreditLine } from './entities/Transaction/credit-line.entity';
-import { OrderAddress } from './entities/CommandePrincipale/address.entity';
-import { Store, StoreDocument } from 'src/store/entities/store.entity';
-import { CreateReturnDto } from './dto/create-return.dto';
-import { Return } from './entities/Retours&Réclamations/return.entity';
-import { Payment, PaymentDocument } from 'src/payment/entities/payment.entity';
-import { OrderShippingMethodTaxLine } from './entities/Taxes&Adjustments/order-shipping-method-tax-line.entity';
-import { OrderShippingMethod } from './entities/Taxes&Adjustments/order-shipping-method.entity';
-import { OrderShippingMethodAdjustment } from './entities/Taxes&Adjustments/order-shipping-method-adjustment.entity';
-import { Cart } from 'src/cart/entities/cart.entity';
-
-export interface OrderChangeAction {
-  id: string;
-  order_id: string;
-  order_change_id: string;
-  action: string;
-  created_at: string;
-}
 
 @Injectable()
-export class OrderService {
+export class OrdersService {
   constructor(
-  @InjectModel(Order.name) private orderModel: Model<OrderDocument>,
-  @InjectModel(OrderItem.name) private orderItemModel: Model<OrderItemDocument>,
-  @InjectModel(OrderShippingMethod.name) private shippingMethodModel: Model<OrderShippingMethod>,
-  @InjectModel(OrderLineItemAdjustment.name) private lineItemAdjustmentModel: Model<OrderLineItemAdjustment>,
-  @InjectModel(OrderShippingMethodAdjustment.name) private shippingMethodAdjustmentModel: Model<OrderShippingMethodAdjustment>,
-  @InjectModel(OrderLineItemTaxLine.name) private lineItemTaxLineModel: Model<OrderLineItemTaxLine>,
-  @InjectModel(OrderShippingMethodTaxLine.name) private shippingMethodTaxLineModel: Model<OrderShippingMethodTaxLine>,
-  @InjectModel(OrderCreditLine.name) private creditLineModel: Model<OrderCreditLine>,
-  @InjectModel(OrderTransaction.name) private transactionModel: Model<OrderTransactionDocument>,
-  @InjectModel(OrderAddress.name) private addressModel: Model<OrderAddress>,
-  @InjectModel(Cart.name) private cartModel: Model<Cart>,
-  @InjectModel(Store.name) private storeModel: Model<StoreDocument>,
-  @InjectModel(Return.name) private returnModel: Model<Return>,
-  @InjectModel(Payment.name) private paymentModel: Model<PaymentDocument>,
-
-  private readonly paymentService: PaymentService, 
+    @InjectModel(Order.name) private orderModel: Model<OrderDocument>,
   ) {}
 
-  private orderChangeActions: OrderChangeAction[] = [];
+  /** Crée une commande globale */
+  async create(createOrderDto: CreateOrderDto): Promise<Order> {
+    const mapped = {
+      ...createOrderDto,
+      items: createOrderDto.items?.map((id) => new Types.ObjectId(id)),
+      credit_lines: createOrderDto.credit_lines?.map((id) => new Types.ObjectId(id)),
+      customer_id: createOrderDto.customer_id ? new Types.ObjectId(createOrderDto.customer_id) : null,
+    };
 
-  async addOrderAction(
-    data: CreateOrderChangeActionDTO | CreateOrderChangeActionDTO[],
-  ): Promise<OrderChangeAction | OrderChangeAction[]> {
-    const actions = Array.isArray(data) ? data : [data];
-
-    const createdActions = actions.map(action => {
-      const newAction: OrderChangeAction = {
-        id: crypto.randomUUID(),
-        ...action,
-        created_at: new Date().toISOString(),
-      };
-      this.orderChangeActions.push(newAction);
-      return newAction;
-    });
-
-    return Array.isArray(data) ? createdActions : createdActions[0];
-  }
-
-
-  async findOneWithDetails(orderId: string) {
-  return this.orderModel.findById(orderId)
-    .populate('customer')
-    .populate('payments')
-    .populate('fulfillments')
-    .populate('shipping_methods')
-    .populate('summaries')
-    .populate('items')
-    .exec();
-}
-
-
- async getAllOrders() {
-    return this.orderModel.find({})
-      .populate('customer')
-      .populate('sales_channel')
-      .populate('payments')
-      .populate('fulfillments')
-      .select([
-        '_id',
-        'createdAt',
-        'customer',
-        'sales_channel',
-        'payments',
-        'fulfillments',
-        'total'
-      ])
-      .lean();
-  }
-
-async createReturn(body: CreateReturnDto) {
-  return this.returnModel.create({
-    order: body.orderId,
-    items: body.items,
-    refund_amount: body.amount,
-    status: 'requested',
-    created_by: 'admin-panel',
-    requested_at: new Date(),
-  });
-}
-
-
-
-  /*
-
-  async findOrdersByVendorUserId(vendorId: string) {
-    // Étape 1 : Trouver tous les stores du vendeur
-    const stores = await this.storeModel.find({ user: vendorId }).select('_id').exec();
-    const storeIds = stores.map(store => store._id);
-
-    if (!storeIds.length) return [];
-
-    // Étape 2 : Trouver les fragments liés à ces stores
-    const fragments = await this.vendorFragmentModel
-      .find({ store: { $in: storeIds } })
-      .populate('parent_order') // pour récupérer l’email client etc.
-      .populate('shipping_address')
-      .exec();
-
-    return fragments;
-  }
-
- 
-
-  async findByStoreId(storeId: string) {
-  return this.orderModel.find({
-    where: { store: { id: storeId } },
-    relations: ['products', 'customer'],
-  });
-}*/
-
-
-  // Exemple d'une méthode pour créer une commande MongoDB
-  async createOrder(orderData: Partial<Order>): Promise<Order> {
-    const createdOrder = new this.orderModel(orderData);
+    const createdOrder = new this.orderModel(mapped);
     return createdOrder.save();
   }
 
-  // Exemple pour récupérer toutes les commandes
-  async findAllOrders(): Promise<Order[]> {
-    return this.orderModel.find().exec();
+  /** Récupère toutes les commandes */
+ async findAll(): Promise<Order[]> {
+  return this.orderModel.find().exec(); 
+ }
+
+
+  /** Crée une commande dans une boutique spécifique */
+async createOrderInStore(createOrderDto: CreateOrderDto, storeId: string): Promise<Order> {
+  if (!storeId || !Types.ObjectId.isValid(storeId)) {
+    throw new BadRequestException('ID de boutique invalide');
   }
 
-  // Créer un paiement lié à une commande
-  // Créer un paiement lié à une commande
+  const lastOrder = await this.orderModel.findOne({ store: storeId }).sort({ display_id: -1 }).exec();
+  const nextDisplayId = lastOrder ? lastOrder.display_id + 1 : 1000;
+
+  const mapped = {
+    ...createOrderDto,
+    store: new Types.ObjectId(storeId),
+    display_id: nextDisplayId,
+    items: createOrderDto.items?.map(id => new Types.ObjectId(id)) || [],
+    credit_lines: createOrderDto.credit_lines?.map(id => new Types.ObjectId(id)) || [],
+    customer_id: createOrderDto.customer_id ? new Types.ObjectId(createOrderDto.customer_id) : null,
+  };
+
+  const order = new this.orderModel(mapped);
+
+  return order.save();
+ }
 
 
-
-async createPaymentForOrder(orderId: string, createPaymentDto: CreatePaymentDto) {
-  const order = await this.orderModel.findById(orderId);
-  if (!order) {
-    throw new NotFoundException(`Order with id ${orderId} not found`);
-  }
-
- const payment: PaymentDocument = await this.paymentService.create(createPaymentDto);
- order.payments?.push(payment.id);
-
-  await order.save();
-
-  return payment;
-}
-
-
-  async findOrderById(orderId: string): Promise<Order> {
-    const order = await this.orderModel.findById(orderId).exec();
-    if (!order) {
-      throw new NotFoundException(`Order with id ${orderId} not found`);
+  async findAllByStorePaginated(
+    storeId: string,
+    page: number = 1,
+    limit: number = 10,
+  ) {
+    if (!Types.ObjectId.isValid(storeId)) {
+      throw new NotFoundException('storeId invalide');
     }
-    return order;
-  }
 
-  async updateOrder(orderId: string, updateData: Partial<Order>): Promise<Order> {
-    const updatedOrder = await this.orderModel
-      .findByIdAndUpdate(orderId, updateData, { new: true })
+    const skip = (page - 1) * limit;
+
+    const storeObjectId = new Types.ObjectId(storeId);
+
+    // Récupération des commandes pour la boutique avec client et paiements
+    const orders = await this.orderModel
+      .find({ store: storeObjectId })
+      .populate('customer_id','name, phone') // populate infos client
+      .populate('payments') // populate paiements liés à la commande
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
       .exec();
 
-    if (!updatedOrder) {
-      throw new NotFoundException(`Order with id ${orderId} not found`);
-    }
-    return updatedOrder;
-  }
-
-  async deleteOrder(orderId: string): Promise<Order> {
-    const deletedOrder = await this.orderModel.findByIdAndDelete(orderId).exec();
-    if (!deletedOrder) {
-      throw new NotFoundException(`Order with id ${orderId} not found`);
-    }
-    return deletedOrder;
-  }
-
-  /**
- * ✅ Seul le vendeur peut changer le statut de la commande.
- * Ici, on suppose que le contrôle d'accès est fait par un guard ou une vérification dans le contrôleur.
- */
-  async updateOrderStatus(orderId: string, status: OrderStatus): Promise<Order> {
-    const order = await this.orderModel.findById(orderId);
-    if (!order) {
-      throw new NotFoundException(`Order with id ${orderId} not found`);
-    }
-
-    // Le vendeur change le statut
-    order.status = status;
-    await order.save();
-
-    return order;
-  }
-/*
-    static createFromDto(dto: Partial<OrderTransaction>): Partial<OrderTransaction> {
-    const toNull = <T>(val: T | undefined): T | null => val === undefined ? null : val;
-    const toObjectIdOrNull = (val: any): Types.ObjectId | null => {
-      if (val === undefined || val === null) return null;
-      return new Types.ObjectId(val);
-    };
+    const total = await this.orderModel.countDocuments({ store: storeObjectId });
 
     return {
-      ...dto,
-      reference: toNull(dto.reference),
-      reference_id: toNull(dto.reference_id),
-      return: toObjectIdOrNull(dto.return),
-      exchange: toObjectIdOrNull(dto.exchange),
-      claim: toObjectIdOrNull(dto.claim),
-    };  
-  }
-*/
-
-  async createFromCart(cartId: string): Promise<Order> {
-  const cart = await this.cartModel.findById(cartId)
-    .populate([
-      {
-        path: 'items',
-        populate: ['adjustments', 'tax_lines']
+      orders,
+      meta: {
+        total,
+        page,
+        pageSize: limit,
+        totalPages: Math.ceil(total / limit),
       },
-      {
-        path: 'shipping_methods',
-        populate: ['adjustments', 'tax_lines']
-      },
-      'shipping_address',
-      'billing_address',
-    ])
-    .exec();
-
-  if (!cart) {
-    throw new NotFoundException(`Cart with id ${cartId} not found`);
+    };
   }
 
-  // 1. Copier les OrderItems
-  const orderItems = await Promise.all(cart.items.map(async (item) => {
-    const orderItem = new this.orderItemModel({
-      title: item.title,
-      quantity: item.quantity,
-      unit_price: item.unit_price,
-      product_id: item.product_id,
-      variant_id: item.variant_id,
-      adjustments: item.adjustments,
-      tax_lines: item.tax_lines,
-      is_giftcard: item.is_giftcard,
-      is_tax_inclusive: item.is_tax_inclusive,
-      metadata: item.metadata,
-    });
-    return await orderItem.save();
-  }));
 
-  // 2. Copier les méthodes de livraison
-  const orderShippingMethods = await Promise.all(
-  (cart.shipping_methods || []).map(async (method) => {
-    const orderMethod = new this.shippingMethodModel({
-      name: method.name,
-      description: method.description ?? null,
-      amount: method.amount, //  attention ici
-      is_tax_inclusive: method.is_tax_inclusive ?? false,
-      is_custom_amount: method.is_custom_amount ?? false,
-      shipping_option_id: method.shipping_option_id ?? null,
-      data: method.data ?? null,
-      metadata: method.metadata ?? null,
-      adjustments: method.adjustments ?? [],
-      tax_lines: method.tax_lines ?? [],
-    });
-    return await orderMethod.save();
-  })
- );
+async findOne(orderId: string) {
+  if (!orderId) throw new BadRequestException('ID de commande manquant');
 
+  if (!Types.ObjectId.isValid(orderId)) {
+    throw new BadRequestException('ID invalide');
+  }
 
-  // 3. Copier les adresses
-  const shippingAddress = cart.shipping_address
-    ? await new this.addressModel(cart.shipping_address).save()
-    : null;
-
-  const billingAddress = cart.billing_address
-    ? await new this.addressModel(cart.billing_address).save()
-    : null;
-
-  // 4. Créer la commande
-  const order = new this.orderModel({
-    cart_id: cart.id,
-    customer_id: cart.customerId,
-    currency_code: cart.currency_code,
-    region_id: cart.region_id,
-    sales_channel_id: cart.sales_channel_id,
-    shipping_address: shippingAddress,
-    billing_address: billingAddress,
-    items: orderItems,
-    shipping_methods: orderShippingMethods,
-    subtotal: cart.subtotal,
-    tax_total: cart.tax_total,
-    shipping_total: cart.shipping_total,
-    discount_total: cart.discount_total,
-    total: cart.total,
-    metadata: cart.metadata,
-    status: 'pending', // ou draft selon logique
-  });
-
-  return await order.save();
-}
-
-/*
-async createMultiVendorOrder(cartId: string): Promise<Order> {
-  const cart = await this.cartModel.findById(cartId)
+  const order = await this.orderModel
+    .findById(orderId)
+    .populate('customer_id')
+    .populate('payments')
     .populate({
       path: 'items',
-      populate: ['adjustments', 'tax_lines', 'product']
+      populate: { path: 'item', model: 'OrderLineItem' }, // si tes OrderItem réfèrent OrderLineItem
     })
-    .populate('shipping_methods')
-    .populate('billing_address')
-    .populate('shipping_address')
     .exec();
 
-  if (!cart || cart.items.length === 0) {
-    throw new Error('Panier vide ou introuvable');
-  }
+  if (!order) throw new NotFoundException('Commande non trouvée');
 
-  // Étape 1 : Créer la commande principale
-  const order = new this.orderModel({
-    customer_id: cart.customer,
-    email: cart.email,
-    shipping_address: cart.shipping_address,
-    billing_address: cart.billing_address,
-    cart_id: cart._id,
-    status: 'pending',
-  });
+  // Calcul du total
+  const total = order.items?.reduce((acc, item: any) => {
+    const qty = Number(item.quantity ?? 0);
+    const price = Number(item.unit_price ?? 0);
+    return acc + qty * price;
+  }, 0) ?? 0;
 
-  await order.save();
-
-  // Étape 2 : Créer les LineItems sans regroupement par vendeur
-  let subtotal = 0;
-  let taxTotal = 0;
-  let shippingTotal = 0;
-
-  for (const item of cart.items) {
-    if (!item?.product) continue;
-
-    // Calculer le sous-total pour chaque produit
-    subtotal += item.unit_price * item.quantity;
-
-    // Calcul des taxes
-    if (item.tax_lines?.length) {
-      for (const taxLine of item.tax_lines) {
-        taxTotal += taxLine.amount || 0;
-      }
-    }
-  }
-
-  // Récupérer un shipping_method du panier
-  const shippingMethod = cart.shipping_methods?.[0]; // Prendre le premier shipping method disponible
-  if (shippingMethod) {
-    shippingTotal += shippingMethod.amount || 0;
-  }
-
-  // Étape 3 : Créer une commande sans fragmentation par vendeur
-  const fragment = new OrderFragmentModel({
-    parent_order: order._id,
-    line_items: cart.items.map(i => i.id),
-    shipping_address: cart.shipping_address,
-    billing_address: cart.billing_address,
-    subtotal,
-    shipping_total: shippingTotal,
-    tax_total: taxTotal,
-    total: subtotal + taxTotal + shippingTotal,
-    status: 'pending',
-  });
-
-  await fragment.save();
-
-  return order;
+  // On retourne un objet propre
+  return {
+    ...order.toObject(),
+    total,
+  };
 }
-*/
 
-// order.service.ts
-async createMultiVendorOrder(cartId: string): Promise<Order> {
-  const cart = await this.cartModel.findById(cartId)
-    .populate('items')
-    .populate('shipping_methods')
-    .populate('billing_address')
-    .populate('shipping_address')
-    .exec();
 
-  if (!cart || cart.items.length === 0) {
-    throw new Error('Panier vide ou introuvable');
+
+
+  /** Met à jour une commande par UUID */
+  async update(orderId: string, updateOrderDto: UpdateOrderDto): Promise<Order> {
+    const mapped = {
+      ...updateOrderDto,
+      items: updateOrderDto.items?.map((id) => new Types.ObjectId(id)),
+      credit_lines: updateOrderDto.credit_lines?.map((id) => new Types.ObjectId(id)),
+      customer_id: updateOrderDto.customer_id ? new Types.ObjectId(updateOrderDto.customer_id) : null,
+    };
+
+    const updated = await this.orderModel.findOneAndUpdate({ id: orderId }, mapped, { new: true }).exec();
+    if (!updated) throw new NotFoundException(`Commande avec id ${orderId} non trouvée`);
+
+    return updated;
   }
 
-  const order = new this.orderModel({
-    customer_id: cart.customerId,
-    email: cart.email,
-    shipping_address: cart.shipping_address,
-    billing_address: cart.billing_address,
-    cart_id: cart._id,
-    status: 'pending',
-  });
+  /** Supprime une commande par UUID */
+  async remove(orderId: string): Promise<Order> {
+    const deleted = await this.orderModel.findOneAndDelete({ id: orderId }).exec();
+    if (!deleted) throw new NotFoundException(`Commande avec id ${orderId} non trouvée`);
 
-  return await order.save();
-}
+    return deleted;
+  }
+
 
 }

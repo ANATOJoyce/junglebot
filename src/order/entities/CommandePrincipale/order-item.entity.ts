@@ -1,80 +1,47 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { Order } from './order.entity';
-import { OrderLineItem } from '../line-item.entity';
+import { Product } from 'src/product/entities/product.entity';
 
 export type OrderItemDocument = OrderItem & Document;
 
-@Schema({
-  timestamps: true,
-  collection: 'order_items',
-  toJSON: {
-    virtuals: true,
-transform: (
-  doc,
-  ret: { _id?: any; __v?: number; id?: string }
-) => {
-  ret.id = `ordsum_${doc._id.toString()}`;
-  delete ret._id;
-  delete ret.__v;
-  return ret;
-}
-
-  },
-})
+@Schema({ timestamps: true })
 export class OrderItem {
-  @Prop({ default: 1 })
-  version: number;
+  @Prop({ type: Types.ObjectId, ref: 'Order', required: true })
+  order: Types.ObjectId | Order;
 
-  @Prop({ type: String })
-  unit_price?: string;
+  @Prop({ type: Types.ObjectId, ref: 'Product', required: true })
+  product: Types.ObjectId | Product;
 
-  @Prop({ type: String })
-  compare_at_unit_price?: string;
+  @Prop({ type: String, required: true })
+  product_name: string; // copié du produit pour l'historique
 
-  @Prop({ type: String, required: true }) 
-  quantity: string;
+  @Prop({ type: Number, required: true })
+  quantity: number; // choisi par le client
 
-  @Prop({ type: String, default: '0' }) 
-  fulfilled_quantity: string;
+  @Prop({ type: Number, required: true })
+  unit_price: number; // prix à la commande
 
-  @Prop({ type: String, default: '0' }) 
-  delivered_quantity: string;
+  @Prop({ type: Number, default: 0 })
+  fulfilled_quantity: number; // livré
 
-  @Prop({ type: String, default: '0' }) 
-  shipped_quantity: string;
+  @Prop({ type: Number, default: 0 })
+  shipped_quantity: number; // expédié
 
-  @Prop({ type: String, default: '0' }) 
-  return_requested_quantity: string;
+  @Prop({ type: Number, default: 0 })
+  return_requested_quantity: number; // retours demandés
 
-  @Prop({ type: String, default: '0' })
-  return_received_quantity: string;
+  @Prop({ type: Number, default: 0 })
+  return_received_quantity: number; // retours reçus
 
-  @Prop({ type: String, default: '0' })
-  return_dismissed_quantity: string;
+  @Prop({ type: Number, default: 0 })
+  return_dismissed_quantity: number; // retours annulés
 
-  @Prop({ type: String, default: '0' }) 
-  written_off_quantity: string;
+  @Prop({ type: Number, default: 0 })
+  written_off_quantity: number; // articles radiés
 
   @Prop({ type: Object })
   metadata?: Record<string, unknown>;
-
-  @Prop({
-    type: Types.ObjectId,
-    ref: 'Order',
-    required: true,
-  })
-  order: Types.ObjectId | Order;
-
-  @Prop({
-    type: Types.ObjectId,
-    ref: 'OrderLineItem',
-    required: true,
-  })
-  item: Types.ObjectId | OrderLineItem;
-
-  @Prop({ type: Date })
-  deleted_at?: Date;
 }
 
 export const OrderItemSchema = SchemaFactory.createForClass(OrderItem);

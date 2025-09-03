@@ -7,11 +7,13 @@ import { Currency, CurrencySchema } from 'src/currency/entities/currency.entity'
 import { JwtModule } from '@nestjs/jwt';
 import { AuthModule } from 'src/auth/auth.module';
 import { User, UserSchema } from 'src/user/entities/user.entity';
+import { MailModule } from 'src/mail/mail.module';
 
 @Module({
 
   imports: [
     AuthModule,
+    MailModule,
     JwtModule.register({}),
     MongooseModule.forFeature([
       { name: Store.name, schema: StoreSchema },

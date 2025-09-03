@@ -11,8 +11,7 @@ import { Fulfillment, FulfillmentSchema } from './entities/fulfillment.entity';
 import { GeoZone, GeoZoneSchema } from './entities/geo-zone.entity';
 import { FulfillmentSet, FulfillmentSetSchema } from './entities/fulfillment-set.entity';
 import { FulfillmentProvider, FulfillmentProviderSchema } from './entities/fulfillment-provider.entity';
-import { Order } from 'src/order/entities/order.entity';
-import { OrderSchema } from 'src/order/entities/CommandePrincipale/order.entity';
+import { Order, OrderSchema } from 'src/order/entities/CommandePrincipale/order.entity';
 
 @Module({
     imports: [

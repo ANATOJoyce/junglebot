@@ -10,8 +10,8 @@ import {
 import { Role } from '../../auth/role.enum';
 import { User } from '../../user/entities/user.entity';
 import { Store } from 'src/store/entities/store.entity';
-import { Order } from 'src/order/entities/order.entity';
 import { Action } from '../action.enum';
+import { Order } from 'src/order/entities/CommandePrincipale/order.entity';
 
 type Subjects = InferSubjects<typeof Order | typeof User | typeof Store> | 'all';
 

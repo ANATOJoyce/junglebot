@@ -13,6 +13,7 @@ import { UserService } from 'src/user/user.service';
 import { CreateStoreDto } from './dto/create-store.dto';
 import { UpdateCurrencyDto } from 'src/currency/dto/update-currency.dto';
 import { StoreStatus } from './update-store-status.dto';
+import { MailService } from 'src/mail/mail.service';
 
 @Injectable()
 export class StoreService {
@@ -22,6 +23,7 @@ export class StoreService {
       @InjectModel(Store.name) private readonly storeModel: Model<StoreDocument>,
       @InjectModel(User.name) private userModel: Model<User>,
       private jwtService: JwtService,
+      private readonly mailService: MailService,
   ) {}
 
   async NomExitante(NameStore: string){
@@ -33,35 +35,45 @@ export class StoreService {
   }
 
   
-
 async createStoreForExistingUser(dto: CreateStoreDto, ownerId: string) { 
-  console.log(ownerId, 'ownerid')
-  const user = await this.userModel.findById(ownerId);
+  console.log(ownerId, 'ownerid');
 
+  // Recherche de l'utilisateur
+  const user = await this.userModel.findById(ownerId);
   if (!user) {
     throw new NotFoundException("Utilisateur introuvable");
   }
 
-
+  // Création du magasin
   const store = await this.storeModel.create({
     ...dto,
     owner: user._id, // CORRECTION ici
-    status: StoreStatus.INACTIVE ,
+    status: StoreStatus.INACTIVE,
     metadata: {},
   });
-    // Ajouter le magasin à la liste des magasins de l'utilisateur (optionnel, si tu veux)
-    if (!user.store) {
+
+  // Ajouter le magasin à la liste des magasins de l'utilisateur (optionnel, si tu veux)
+  if (!user.store) {
     user.store = [];
-    }
+  }
 
-    user.store.push(store._id);
-    await user.save();
+  user.store.push(store._id);
+  await user.save();
 
+  // Générer un code de vérification unique
+  const generateCode = () => Math.floor(100000 + Math.random() * 900000).toString(); // Génère un code à 6 chiffres
+  const verificationCode = generateCode();
+
+  // Envoi de l'email de confirmation avec le code de vérification
+  await this.mailService.sendVerificationCode(user.email, verificationCode);
+
+  // Retour de succès
   return {
     message: "Boutique créée avec succès",
     store,
   };
 }
+
 
 
   async getStoreByIdAndUser(storeId: string, userId: string) {
@@ -116,39 +128,39 @@ async findByOwner(ownerId: string) {
     return this.storeModel.findOne({ _id: storeId, ownerId: userId }); // ownerId ou vendorId
   }
 
-// store.service.ts
-async findAll(params: any) {
-  const { page = 1, limit = 10, q = "" } = params;
+  // store.service.ts
+  async findAll(params: any) {
+    const { page = 1, limit = 10, q = "" } = params;
 
-  const query = q
-    ? { name: { $regex: q, $options: "i" } }
-    : {};
+    const query = q
+      ? { name: { $regex: q, $options: "i" } }
+      : {};
 
-  const [stores, count] = await Promise.all([
-    this.storeModel
-      .find(query)
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .populate('owner', 'email first_name last_name'), //  important
-    this.storeModel.countDocuments(query),
-  ]);
+    const [stores, count] = await Promise.all([
+      this.storeModel
+        .find(query)
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .populate('owner', 'email first_name last_name'), //  important
+      this.storeModel.countDocuments(query),
+    ]);
 
-  return { stores, count };
-}
-
-
-
-async findOne(id: string, user?: any) {
-  const storeId = id === 'me' ? user?.id ?? id : id;
-
-  if (!mongoose.Types.ObjectId.isValid(storeId)) {
-    throw new BadRequestException('Invalid store ID');
+    return { stores, count };
   }
 
-  return this.storeModel
-    .findById(storeId)
-    .populate('owner', 'email first_name last_name');
-}
+
+
+  async findOne(id: string, user?: any) {
+    const storeId = id === 'me' ? user?.id ?? id : id;
+
+    if (!mongoose.Types.ObjectId.isValid(storeId)) {
+      throw new BadRequestException('Invalid store ID');
+    }
+
+    return this.storeModel
+      .findById(storeId)
+      .populate('owner', 'email first_name last_name');
+  }
 
 
   

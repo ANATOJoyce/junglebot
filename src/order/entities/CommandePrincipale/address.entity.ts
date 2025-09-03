@@ -10,7 +10,7 @@ import { Document } from 'mongoose';
 export class OrderAddress extends Document {
 @Prop({
   type: String,
-  default: () => `ordaddr_${crypto.randomUUID()}`,
+  default: () => `${crypto.randomUUID()}`,
   required: true,
   unique: true,
 })

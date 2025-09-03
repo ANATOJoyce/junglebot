@@ -54,51 +54,51 @@ export class CartService {
     return await cart.save();
   }
 
-  // 6. getCart : améliorer le populate pour toutes les relations
-async getCart(cartId: string): Promise<CartDocument> {
-  const cart = await this.cartModel.findById(cartId)
-    .populate({
-      path: 'items',
-      populate: ['adjustments', 'tax_lines']
-    })
-    .populate({
-      path: 'shipping_methods',
-      populate: ['adjustments', 'tax_lines']
-    })
-    .populate('shipping_address')
-    .populate('billing_address')
-    .exec();
+    // 6. getCart : améliorer le populate pour toutes les relations
+  async getCart(cartId: string): Promise<CartDocument> {
+    const cart = await this.cartModel.findById(cartId)
+      .populate({
+        path: 'items',
+        populate: ['adjustments', 'tax_lines']
+      })
+      .populate({
+        path: 'shipping_methods',
+        populate: ['adjustments', 'tax_lines']
+      })
+      .populate('shipping_address')
+      .populate('billing_address')
+      .exec();
 
-  if (!cart) {
-    throw new NotFoundException(`Cart with id ${cartId} not found`);
+    if (!cart) {
+      throw new NotFoundException(`Cart with id ${cartId} not found`);
+    }
+
+    return cart;
   }
 
-  return cart;
-}
 
+  async createCartByCustomer(createCartDto: Partial<CartDTO>, req): Promise<Cart> {
+    const { items, ...rest } = createCartDto;
 
-async createCartByCustomer(createCartDto: Partial<CartDTO>, req): Promise<Cart> {
-  const { items, ...rest } = createCartDto;
+    // Récupération du customerId depuis JWT
+    const customerId = req.user?.id;
+    if (!customerId) {
+      throw new BadRequestException('Identifiant client manquant dans le token');
+    }
 
-  // Récupération du customerId depuis JWT
-  const customerId = req.user?.id;
-  if (!customerId) {
-    throw new BadRequestException('Identifiant client manquant dans le token');
+    const customer = await this.customerModel.findById(customerId).exec();
+    if (!customer) {
+      throw new NotFoundException('Client non trouvé');
+    }
+
+    const newCart = new this.cartModel({
+      customerId: customer._id,
+      items: items || [],
+      ...rest,
+    });
+
+    return await newCart.save();
   }
-
-  const customer = await this.customerModel.findById(customerId).exec();
-  if (!customer) {
-    throw new NotFoundException('Client non trouvé');
-  }
-
-  const newCart = new this.cartModel({
-    customerId: customer._id,
-    items: items || [],
-    ...rest,
-  });
-
-  return await newCart.save();
-}
 
 
 

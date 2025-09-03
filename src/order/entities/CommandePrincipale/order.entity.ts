@@ -1,82 +1,43 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
-import { OrderStatus } from '../../order-status.enum';
+import { Document, Schema as MongooseSchema, Types } from 'mongoose';
+import { CreditLine } from 'src/cart/entities/credit-line.entity';
+import { Customer } from 'src/customer/entities/customer.entity';
+import { OrderItem } from './order-item.entity';
 import { Payment } from 'src/payment/entities/payment.entity';
+import { OrderStatus } from 'src/order/order-status.enum';
 
-@Schema({
-  timestamps: true,
-  collection: 'orders',
-  toJSON: {
-    virtuals: true,
-transform: (
-  doc,
-  ret: { _id?: any; __v?: number; id?: string }
-) => {
-  ret.id = `ordsum_${doc._id.toString()}`;
-  delete ret._id;
-  delete ret.__v;
-  return ret;
-}
-
-  },
-})
-export class Order extends Document {
-
- 
- @Prop({ type: Number, unique: true })
-  display_id?: number | null;
-  
+export type OrderDocument = Order & Document & { _id: Types.ObjectId };
 
 
-  @Prop({ 
-    required: true, 
-    enum: OrderStatus,   // Restriction aux valeurs de l'enum OrderStatus
-    default: OrderStatus.PENDING  // Par défaut, une commande est "pending"
-  })
+
+@Schema({ timestamps: true })
+export class Order {
+
+  @Prop({ type: Number, required: true })
+  display_id: number;
+
+  @Prop({ type: String, enum: Object.values(OrderStatus), default: OrderStatus.PENDING })
   status: OrderStatus;
 
-
-  @Prop({ required: true })
+  @Prop({ type: String, required: true })
   currency_code: string;
 
-  @Prop({ type: Object, default: {} })
-  metadata?: Record<string, unknown>;
+  @Prop({ type: [{ type: MongooseSchema.Types.ObjectId, ref: 'OrderItem' }], default: [] })
+  items: OrderItem[]; //les produits
 
-  @Prop({ type: Types.ObjectId, ref: 'Store' })
-  store: Types.ObjectId;
+  @Prop({ type: [{ type: MongooseSchema.Types.ObjectId, ref: 'CreditLine' }], default: [] })
+  credit_lines: CreditLine[];
 
-  @Prop({ required: true })
-  email: string;
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Customer', default: null })
+  customer_id?: Customer | null;
 
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Store', required: true })
+  store: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'OrderAddress', default: null })
-  shipping_address?: Types.ObjectId | null;
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Payment' }] })
+  payments?: Payment[];
 
-  @Prop({ type: Types.ObjectId, ref: 'OrderAddress', default: null })
-  billing_address?: Types.ObjectId | null;
-
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'OrderSummary' }], default: [] })
-  summaries?: Types.ObjectId[]; // ou OrderSummary[]
-
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'OrderItem' }], default: [] })
-  items?: Types.ObjectId[]; // ou OrderItem[]
-
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'OrderShippingMethod' }], default: [] })
-  shipping_methods?: Types.ObjectId[]; // ou OrderShippingMethod[]
-
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Payment' }], default: [] })
-  payments?:  Payment[];
-
-  @Prop()
-  deleted_at?: Date;
-
-  @Prop({ type: Number, required: true, default: 0 })
-  total: number;
-
+ 
 }
 
-export type OrderDocument = Order & Document;
-
-
 export const OrderSchema = SchemaFactory.createForClass(Order);
-

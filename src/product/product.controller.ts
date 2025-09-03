@@ -158,21 +158,21 @@ async getMyProducts(
 
 
 
-@Get('filter')
-async filterProducts(
-  @Query('storeId') storeId: string,
-  @Query('minPrice') minPrice?: string,
-  @Query('maxPrice') maxPrice?: string,
-  @Query('size') size?: string,
-  @Query('color') color?: string,
-) {
-  return this.productService.getProductsByVariantAndPrice(storeId, {
-    minPrice: minPrice ? Number(minPrice) : undefined,
-    maxPrice: maxPrice ? Number(maxPrice) : undefined,
-    size,
-    color,
-  });
-}
+  @Get('filter')
+  async filterProducts(
+    @Query('storeId') storeId: string,
+    @Query('minPrice') minPrice?: string,
+    @Query('maxPrice') maxPrice?: string,
+    @Query('size') size?: string,
+    @Query('color') color?: string,
+  ) {
+    return this.productService.getProductsByVariantAndPrice(storeId, {
+      minPrice: minPrice ? Number(minPrice) : undefined,
+      maxPrice: maxPrice ? Number(maxPrice) : undefined,
+      size,
+      color,
+    });
+  }
 
   @Get('search')
   async search(@Query('title') title: string) {

@@ -5,6 +5,7 @@ import { Variant } from 'src/product/entities/product-variant.entity';
 
 @Schema({ timestamps: true })
 export class MoneyAmount {
+  
   @Prop({ type: Number, required: true })
   amount: number;
 
@@ -14,8 +15,8 @@ export class MoneyAmount {
   @Prop({ type: Types.ObjectId, ref: 'Currency' })
   currency?: Types.ObjectId | Currency;
 
-    @Prop({ type: Types.ObjectId, ref: 'ProductVariant' })
-    variant?: Types.ObjectId | Variant;
+  @Prop({ type: Types.ObjectId, ref: 'ProductVariant' })
+  variant?: Types.ObjectId | Variant;
 
 
   @Prop({ type: Date })

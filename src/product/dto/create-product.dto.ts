@@ -13,8 +13,12 @@ export class CreateProductDto {
   description?: string;
 
   @IsOptional()
+  @IsNumber()
+  totalStock?: number;  // Stock global du produit
+  
+  @IsOptional()
   @IsEnum(ProductStatus)
-  status?: ProductStatus;
+  status: ProductStatus = ProductStatus.DRAFT; // Valeur par défaut "DRAFT"
 
   @IsNumber()
   price: number;

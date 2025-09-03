@@ -1,4 +1,3 @@
-// src/mail/mail.service.ts
 import { Injectable } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
 
@@ -12,7 +11,16 @@ export class MailService {
         to: email,
         subject: 'Votre code de vérification',
         text: `Voici votre code de vérification : ${code}`,
-        html: `<p>Voici votre code de vérification : <strong>${code}</strong></p>`,
+        html: `
+          <html>
+            <body>
+              <h1>Bonjour !</h1>
+              <p>Voici votre code de vérification :</p>
+              <p style="font-size: 24px; font-weight: bold;">${code}</p>
+              <p>Merci de votre inscription sur notre site. Si vous n'avez pas demandé ce code, veuillez ignorer cet email.</p>
+            </body>
+          </html>
+        `,
       });
 
       console.log('Email envoyé :', info.messageId);

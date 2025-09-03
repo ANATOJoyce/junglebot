@@ -8,6 +8,14 @@ export class Product {
   @Prop({ required: true })
   title: string;
 
+  @Prop({ type: String, enum: ProductStatus, default: ProductStatus.DRAFT })  // Utilisation de l'enum pour le status
+  status: ProductStatus;
+
+  @Prop({ required: false, default: 0 })  // Stock global du produit
+  totalStock: number;
+
+  
+
   @Prop({ required: false })
   description: string;
 

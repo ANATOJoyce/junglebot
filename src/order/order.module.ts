@@ -1,8 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { OrderService } from './order.service';
-import { Order } from './entities/order.entity';
-import { OrderSchema } from './entities/CommandePrincipale/order.entity';
+import { Order, OrderSchema } from './entities/CommandePrincipale/order.entity';
 import { OrderItem, OrderItemSchema } from './entities/CommandePrincipale/order-item.entity';
 import { OrderShippingMethod, OrderShippingMethodSchema } from './entities/Taxes&Adjustments/order-shipping-method.entity';
 import { OrderLineItemAdjustment, OrderLineItemAdjustmentSchema } from './entities/Taxes&Adjustments/line-item-adjustment.entity';
@@ -17,6 +15,9 @@ import { Store, StoreSchema } from 'src/store/entities/store.entity';
 import { Return, ReturnSchema } from './entities/Retours&Réclamations/return.entity';
 import { Payment, PaymentSchema } from 'src/payment/entities/payment.entity';
 import { PaymentModule } from 'src/payment/payment.module';
+import { OrdersService } from './order.service';
+import { OrdersController } from './order.controller';
+import { StoreModule } from 'src/store/store.module';
 
 
 @Module({
@@ -38,8 +39,10 @@ import { PaymentModule } from 'src/payment/payment.module';
       { name: Payment.name, schema: PaymentSchema },
     ]),
     PaymentModule, 
+    StoreModule,
   ],
-  providers: [OrderService],
-  exports: [OrderService],
+  providers: [OrdersService],
+  controllers: [OrdersController],
+  exports: [OrdersService],
 })
 export class OrderModule {}

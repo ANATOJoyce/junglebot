@@ -79,7 +79,7 @@ export class StoreController {
     //return {}
     if (!userId) {
       throw new NotFoundException('Utilisateur non authentifié.');
-    }
+  }
 
     const store = await this.storeService.getMyStores(userId);
     if (!store) {
@@ -90,15 +90,14 @@ export class StoreController {
     return store;
   }
 
+
+  
   @Get(':id')
   async findOne(@Param('id') id: string) {
     const store = await this.storeService.findOne(id); // OK : pas besoin de user
     if (!store) throw new NotFoundException(`Boutique avec ID ${id} non trouvée`);
     return store;
   }
-
- 
-
 
   @Patch(':id')
   @Roles(Role.VENDOR, Role.ADMIN)
@@ -139,10 +138,5 @@ export class StoreController {
   removeCurrency(@Param('id') id: string) {
     return this.storeService.removeCurrency(id);
   }
-
-
-
-  
-
   
 }

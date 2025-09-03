@@ -43,6 +43,7 @@ declare _id: Types.ObjectId;
   owner: User;
 
 
+  
   @Prop({
     type: [{ type: MongooseSchema.Types.ObjectId, ref: 'StoreCurrency' }],
     default: [],

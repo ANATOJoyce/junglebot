@@ -104,6 +104,7 @@ async createProductInStore(dto: CreateProductDto, storeId: string) {
     title: dto.title,
     description: dto.description,
     price: dto.price,
+    
     imageUrl: dto.imageUrl, 
     storeId: store._id,
     variants: dto.variants || [],
@@ -116,6 +117,7 @@ async createProductInStore(dto: CreateProductDto, storeId: string) {
     console.error("Erreur lors de la création :", error);
     throw new InternalServerErrorException("Erreur lors de la création du produit.");
   }
+
 }
 
 async getProductsForStore({
@@ -134,17 +136,29 @@ async getProductsForStore({
     query.title = { $regex: search, $options: "i" };
   }
 
+  // Récupération des produits avec pagination et populate de la boutique
   const products = await this.productModel
     .find(query)
+    .populate('storeId', 'name') // <- ici on inclut le nom de la boutique
     .skip((page - 1) * limit)
     .limit(limit)
     .sort({ createdAt: -1 })
     .exec();
 
+  // Calcul du stock total par produit
+  const productsWithTotalStock = products.map((product) => {
+    const totalStock = product.variants?.reduce((sum, v) => sum + (v.stock || 0), 0) ?? 0;
+    return {
+      ...product.toObject(),
+      totalStock,
+      store: product.storeId, // rename pour correspondre au front
+    };
+  });
+
   const total = await this.productModel.countDocuments(query);
 
   return {
-    data: products,
+    data: productsWithTotalStock,
     meta: {
       total,
       page,
@@ -153,6 +167,8 @@ async getProductsForStore({
     },
   };
 }
+
+
 
 
  async getProductsByStore(storeId: string, userId: string) {
