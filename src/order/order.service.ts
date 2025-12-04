@@ -4,6 +4,7 @@ import { Model, Types } from 'mongoose';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { Order, OrderDocument } from './entities/CommandePrincipale/order.entity';
+import { OrderStatus } from './order-status.enum';
 
 @Injectable()
 export class OrdersService {
@@ -31,8 +32,7 @@ export class OrdersService {
 
 
   /** Crée une commande dans une boutique spécifique */
-async createOrderInStore(createOrderDto: CreateOrderDto, storeId: string): Promise<Order> {
-  if (!storeId || !Types.ObjectId.isValid(storeId)) {
+async createOrderInStore(createOrderDto: CreateOrderDto, storeId: string): Promise<Order> {if (!storeId || !Types.ObjectId.isValid(storeId)) {
     throw new BadRequestException('ID de boutique invalide');
   }
 
@@ -124,6 +124,18 @@ async findOne(orderId: string) {
   };
 }
 
+// order.service.ts
+async updateStatus(orderId: string, status: OrderStatus): Promise<Order> {
+  const order = await this.orderModel.findById(orderId);
+  console.log("Order ID reçu dans le controller :", order);
+
+  if (!order) {
+    throw new NotFoundException('Commande introuvable');
+  }
+
+  order.status = status;
+  return await order.save();
+}
 
 
 
@@ -149,6 +161,18 @@ async findOne(orderId: string) {
 
     return deleted;
   }
+
+
+
+  async findByStoreSince(storeId: string, since: Date) {
+  return this.orderModel
+    .find({
+      store: storeId,
+      createdAt: { $gte: since },
+    })
+    .populate('customer')
+    .exec();
+}
 
 
 }

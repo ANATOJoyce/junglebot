@@ -1,17 +1,32 @@
-import { Controller, Get, Param, Patch } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Patch } from '@nestjs/common';
 import { NotificationService } from './notification.service';
 
 @Controller('notifications')
 export class NotificationController {
   constructor(private readonly notificationService: NotificationService) {}
 
-  @Get(':userId/unread')
-  async getUnread(@Param('userId') userId: string) {
-    return this.notificationService.findUnread(userId);
+  // Récupérer les notifications non lues d'un utilisateur
+  @Get('unread/:userId')
+  async getUnreadNotifications(@Param('userId') userId: string) {
+    return this.notificationService.getUnreadNotifications(userId);
   }
 
-  @Patch(':id/read')
-  async markAsRead(@Param('id') id: string) {
-    return this.notificationService.markAsRead(id);
+  // Récupérer toutes les notifications d'un utilisateur
+  @Get(':userId')
+  async getAllNotifications(@Param('userId') userId: string) {
+    return this.notificationService.getAllNotifications(userId);
+  }
+
+  // Créer une notification
+  @Post()
+  async createNotification(@Body() body: { userId: string; message: string }) {
+    const { userId, message } = body;
+    return this.notificationService.createForUser(userId, message);
+  }
+
+  // Marquer une notification comme lue
+  @Patch(':notificationId/read')
+  async markAsRead(@Param('notificationId') notificationId: string) {
+    return this.notificationService.markAsRead(notificationId);
   }
 }

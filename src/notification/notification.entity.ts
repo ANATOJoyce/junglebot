@@ -3,21 +3,21 @@ import { Document } from 'mongoose';
 
 export type NotificationDocument = Notification & Document;
 
-export type NotificationType = 'new_store' | 'other';
-
 @Schema({ timestamps: true })
 export class Notification {
   @Prop({ required: true })
-  userId: string; // destinataire de la notification (admin)
+  userId: string;
 
   @Prop({ required: true })
   message: string;
 
-  @Prop({ type: String, default: 'new_store' })
-  type: NotificationType;
-
   @Prop({ default: false })
   read: boolean;
+
+  @Prop({ default: Date.now })
+  createdAt: Date;
 }
 
 export const NotificationSchema = SchemaFactory.createForClass(Notification);
+
+

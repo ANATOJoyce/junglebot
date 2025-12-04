@@ -12,7 +12,6 @@ export class CreateProductDto {
   @IsString()
   description?: string;
 
-  @IsOptional()
   @IsNumber()
   totalStock?: number;  // Stock global du produit
   

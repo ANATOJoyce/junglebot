@@ -1,50 +1,20 @@
-import { IsArray, IsDate, IsIn, IsMongoId, IsNumber, IsObject, IsOptional, IsString } from "class-validator";
+import { IsString, IsNumber, IsEnum, IsOptional, Min } from 'class-validator';
 
 export class CreatePaymentDto {
+  @IsString()
+  phoneNumber: string;
+
   @IsNumber()
+  @Min(1)
   amount: number;
 
   @IsString()
-  currency_code: string;
+  @IsOptional()
+  description?: string;
+
+  @IsEnum(['FLOOZ', 'TMONEY'])
+  network: 'FLOOZ' | 'TMONEY';
 
   @IsString()
-  provider_id: string;
-
-  @IsOptional()
-  @IsObject()
-  data?: Record<string, any>;
-
-  @IsOptional()
-  @IsObject()
-  metadata?: Record<string, any>;
-
-  @IsOptional()
-  @IsDate()
-  captured_at?: Date;
-
-  @IsOptional()
-  @IsDate()
-  canceled_at?: Date;
-
-  @IsMongoId()
-  payment_collection: string;
-
-  @IsOptional()
-  @IsMongoId()
-  payment_session?: string;
-
-  @IsOptional()
-  @IsArray()
-  @IsMongoId({ each: true })
-  refunds?: string[];
-
-  @IsOptional()
-  @IsString()
-  @IsIn(['pending', 'captured', 'refunded'])
-  status?: string;
-
-  @IsOptional()
-  @IsArray()
-  @IsMongoId({ each: true })
-  captures?: string[];
+  userId: string;
 }

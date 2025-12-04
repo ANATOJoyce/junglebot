@@ -18,6 +18,10 @@ import { PaymentModule } from 'src/payment/payment.module';
 import { OrdersService } from './order.service';
 import { OrdersController } from './order.controller';
 import { StoreModule } from 'src/store/store.module';
+import { NotificationService } from 'src/notification/notification.service';
+import { NotificationModule } from 'src/notification/notification.module';
+import { Notification, NotificationSchema } from 'src/notification/notification.entity';  // Ajoute cette ligne ici
+import { CustomerModule } from 'src/customer/customer.module';
 
 
 @Module({
@@ -36,12 +40,15 @@ import { StoreModule } from 'src/store/store.module';
       { name: Cart.name, schema: CartSchema },
       { name: Store.name, schema: StoreSchema },
       { name: Return.name, schema: ReturnSchema },
-      { name: Payment.name, schema: PaymentSchema },
+      { name: Payment.name, schema: PaymentSchema }, 
+      { name: Notification.name, schema: NotificationSchema },  // Notification maintenant reconnu
     ]),
+     CustomerModule,
     PaymentModule, 
     StoreModule,
+    NotificationModule
   ],
-  providers: [OrdersService],
+  providers: [OrdersService, NotificationService],
   controllers: [OrdersController],
   exports: [OrdersService],
 })

@@ -1,18 +1,20 @@
-import { IsString, IsNumber, IsMongoId } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsMongoId } from 'class-validator';
 
 export class CreateVariantDto {
-  @IsString()
-  size: string;
+  @IsMongoId()
+  productId: string;
 
+  @IsOptional()
   @IsString()
-  color: string;
+  size?: string;
+
+  @IsOptional()
+  @IsString()
+  color?: string;
 
   @IsNumber()
   price: number;
 
   @IsNumber()
-  stock: number;
-
-  @IsMongoId()
-  productId: string;
+  stock?: number;
 }

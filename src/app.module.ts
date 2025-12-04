@@ -26,6 +26,10 @@ import { MulterModule } from '@nestjs/platform-express';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CloudinaryModule } from './product/cloudinary.module'; // Assurez-vous d’avoir ce module
+import { ManagerModule } from './manager/mamger.module';
+import { StatsModule } from './stats/stats.module';
+import { VerificationCodeModule } from './verification/verification-code.module';
+import { CartModule } from './cart/cart.module';
 
 @Module({
   imports: [
@@ -75,7 +79,12 @@ import { CloudinaryModule } from './product/cloudinary.module'; // Assurez-vous 
     StoreModule,
     TaxModule,
     UserModule,
-    CloudinaryModule,  // Ajout de CloudinaryModule
+    ManagerModule,
+    CloudinaryModule,
+    StatsModule,
+    CartModule,
+    VerificationCodeModule, // ← Important !
+    CloudinaryModule
   ],
   controllers: [AppController],
   providers: [

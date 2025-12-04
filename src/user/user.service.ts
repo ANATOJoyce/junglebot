@@ -23,21 +23,21 @@ export class UserService {
     @InjectModel(Invite.name) private readonly inviteModel: Model<Invite>,
     @InjectModel(Store.name) private readonly storeModel: Model<Invite>,
 
+
+
   ) {}
 
   /** Créer un nouvel utilisateur */
-  async createUser(dto: CreateUserDto): Promise<User> {
-  const roleToUse = dto.role ?? Role.CUSTOMER;
-
-  const u = new this.userModel({
+async createUser(dto: CreateUserDto): Promise<User> {
+  const user = new this.userModel({
     ...dto,
-    role: roleToUse,
-    userId: uuidv4(), 
+    userId: uuidv4(),
   });
 
-  return u.save();
+  // Sauvegarder et renvoyer l'utilisateur
+  return user.save();
+}
 
-  }
 
   public generateTokens(user: any, identity: AuthIdentity) {
       // Ton code de génération de JWT ici
@@ -80,13 +80,14 @@ export class UserService {
   return this.userModel.findOne({ email }).exec();
 }
 
+async findOneByEmailOrUsername(login: string): Promise<User | null> {
+  return this.userModel.findOne({
+    $or: [{ email: login }, { username: login }],
+  });
+}
 
 
 
-  /** Récupérer tous les utilisateurs */
-  async findAll(): Promise<UserDocument[]> {
-    return this.userModel.find().exec();
-  }
 
   /** Récupérer un utilisateur par ID */
   async findOneById(id: string): Promise<UserDocument | null> {
@@ -108,11 +109,7 @@ export class UserService {
     return this.userModel.findByIdAndUpdate(id, updateUserDto, { new: true }).exec();
   }
 
-  /** Supprimer un utilisateur */
-  async remove(id: string): Promise<UserDocument | null> {
-    return this.userModel.findByIdAndDelete(id).exec();
-  }
-  
+ 
   /** recuper tout le role de tout les utilisateur */
   async findAllByRole(role: Role): Promise<User[]> {
     return this.userModel.find({ role }).exec();
@@ -145,5 +142,44 @@ async updateUser(userId: string, dto: UpdateUserDto): Promise<User> {
   }
 
 
+
+   // Récupérer tous les utilisateurs avec pagination et recherche
+  async findAll(page = 1, limit = 10, search = '') {
+    const query = search
+      ? {
+          $or: [
+            { first_name: { $regex: search, $options: 'i' } },
+            { last_name: { $regex: search, $options: 'i' } },
+            { email: { $regex: search, $options: 'i' } },
+            { phone: { $regex: search, $options: 'i' } },
+          ],
+        }
+      : {};
+
+    const users = await this.userModel
+      .find(query)
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec();
+
+    const count = await this.userModel.countDocuments(query);
+
+    return { users, count };
+  }
+
+  // Supprimer un utilisateur par ID
+  async remove(userId: string) {
+    const result = await this.userModel.findByIdAndDelete(userId).exec();
+    if (!result) throw new NotFoundException('Utilisateur non trouvé');
+    return result;
+  }
+
+  // Changer le rôle d’un utilisateur
+  async changeRole(userId: string, newRole: string) {
+    const user = await this.userModel.findById(userId).exec();
+    if (!user) throw new NotFoundException('Utilisateur non trouvé');
+    user.role = newRole as any;
+    return user.save();
+  }
   
 }

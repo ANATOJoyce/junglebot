@@ -8,6 +8,7 @@ import { PaymentCollection, PaymentCollectionSchema } from './entities/payment-c
 import { Refund, RefundSchema } from './entities/refund.entity';
 import { Capture, CaptureSchema } from './entities/capture.entity';
 import { Order, OrderSchema } from 'src/order/entities/CommandePrincipale/order.entity';
+import { Transaction, TransactionSchema } from './entities/transaction.entity';
 
 @Module({
   imports: [
@@ -18,6 +19,8 @@ import { Order, OrderSchema } from 'src/order/entities/CommandePrincipale/order.
       { name: Refund.name, schema: RefundSchema },
       { name: Capture.name, schema: CaptureSchema },
       { name: Order.name, schema: OrderSchema },
+      {name: Transaction.name, schema: TransactionSchema}
+
 
     ]),
   ],

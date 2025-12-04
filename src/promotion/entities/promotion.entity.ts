@@ -1,69 +1,54 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Types } from 'mongoose';
+import { Document, Types } from 'mongoose';
 import { PromotionStatus } from '../enum-promotion';
-import { IsEnum, IsIn } from 'class-validator';
-import { PromotionType } from '../promotion-type.enum';
-
-
-export type PromotionDocument = Promotion & Document;
+import { PromotionMethod } from '../promotion-methode.enum';
+import { PromotionType } from './promotion-type.enum';
 
 @Schema({ timestamps: true })
-export class Promotion {
-  @Prop({ required: true, unique: true })
-  code: string; // Ex: SUMMER2025
-
-  @Prop({ required: true, enum: ['percentage', 'fixed'] })
-  discount_type: 'percentage' | 'fixed';
-
-  @Prop({ required: true, min: 0 })
-  value: number; // Ex: 10 (10% ou 10€)
-
-  @Prop({ type: Number, default: 0 })
-  min_cart_total?: number; // Montant min du panier pour être éligible
-
-  @Prop({ type: String, enum: PromotionStatus, default: PromotionStatus.DRAFT })
-  status: PromotionStatus;
-
-  @Prop({ type: Date })
-  start_date?: Date;
-
-  @Prop({ type: Date })
-  end_date?: Date;
-
-  @Prop({type: Boolean})
-  is_active: Boolean;
-
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Product' }], default: [] })
-  products: Types.ObjectId[];
-
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'ProductCollection' }], default: [] })
-  collections: Types.ObjectId[];
-
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'ProductCategory' }], default: [] })
-  categories: Types.ObjectId[];
-
-  @Prop({ type: Types.ObjectId, ref: 'Store', required: true })
-  storeId: Types.ObjectId;
-
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'CustomerGroup' }], default: [] })
-  customerGroups: Types.ObjectId[];
-
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Region' }], default: [] })
-  regions: Types.ObjectId[];
-
-  @Prop({ type: Boolean, default: false })
-  applies_to_shipping: boolean;
-
-  @Prop({ type: Object, default: {} })
-  metadata?: Record<string, any>;
-
-  
-  @IsEnum(PromotionType)
+export class Promotion extends Document {
+  @Prop({ required: true, enum: PromotionType, default: PromotionType.AMOUNT_OFF_ORDER })
   type: PromotionType;
 
-  @Prop({ default: false })
-  deleted: boolean;
+  @Prop({ required: true, enum: PromotionMethod, default: PromotionMethod.AUTOMATIC })
+  method: PromotionMethod;
+
+   @Prop({ type: String, enum: PromotionStatus, default: PromotionStatus.DRAFT })
+  status: PromotionStatus;
+
+
+  @Prop({ unique: true, sparse: true }) // ← Important (ceci peut etre un nombre ou en pourcentage)
+  Promotion_value?: string;
+
+  @Prop({ unique: true, sparse: true }) // ← Important
+  code?: string;
+
+  @Prop({ unique: true, sparse: true }) // ← Important
+  taxe_include?: string;
+
+  @Prop({ unique: true, sparse: true }) // ← Important ()
+  condition?: string[];
+
+  @Prop({ unique: true, sparse: true }) // ← Important
+  value?: string;
+
+  @Prop({ unique: true, sparse: true }) // ← Important( c'est dans le cas oiu c'est un amount of produit on l"applique a soit tout les produits ou quelque nombre de produit seulement, )
+  discount?: string;
+
+  @Prop({ unique: true, sparse: true }) // ← Important'(amount of product lorsque discount est a once pour choisir combien de quantité il doit y avoir dans le panier avant de pouvoir applique la regle )
+  Max_quantity?: string;
+
+  @Prop({ unique: true, sparse: true }) // ← Important'(amount of product lorsque discount est a once pour choisir combien de quantité il doit y avoir dans le panier avant de pouvoir applique la regle )
+  Min_quantity?: string;
+
+
+  @Prop({ type: Types.ObjectId, ref: 'Campaign' })
+  campaign?: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: 'Store' })
+  store?: Types.ObjectId;
 
 }
 
+
+export type PromotionDocument = Promotion & Document;
 export const PromotionSchema = SchemaFactory.createForClass(Promotion);

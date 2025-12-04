@@ -1,19 +1,18 @@
-import { IsString, IsOptional } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsArray } from 'class-validator';
+import { Visibility } from 'src/product/entities/product-category.entity';
 
 export class CreateProductCollectionDto {
   @IsString()
-  title: string;
+  name: string;
 
   @IsString()
   handle: string;
 
   @IsOptional()
-  @IsString()
-  description?: string;
+  @IsEnum(Visibility)
+  visibility?: Visibility;
 
   @IsOptional()
-  is_active?: boolean;
-
-  @IsOptional()
-  rank?: number;
+  @IsArray()
+  products?: string[];
 }

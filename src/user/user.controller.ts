@@ -19,23 +19,15 @@ export class UserController {
   constructor(private readonly userService: UserService) {}
 
 
-  @Post()
-  createUser(@Body(ValidationPipe) createUserDto: CreateUserDto) {
-    return this.userService.createUser(createUserDto);
-  }
   
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Get('/profile')
   @Roles(Role.ADMIN, Role.VENDOR)
+  @Get('/profile')
   async getProfile(@CurrentUser() user: User) {
     return user; // déjà bien typé grâce au décorateur
   }
   
- //Afficher tout les utilisateur
-  @Get()
-  findAll() {
-    return this.userService.findAll();
-  }
+
 
   //user/:id(recherceh d'un utililisateur par son id )
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -92,5 +84,35 @@ async findMe(@CurrentUser() id: string) {
     return this.userService.updateUser(user.id, dto);
   }
  
+
+   // ----------------- GET /users -----------------
+@UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get()
+  async findAll(
+    @Query('page') page = '1',
+    @Query('limit') limit = '10',
+    @Query('q') search = '',
+  ) {
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    return this.userService.findAll(pageNum, limitNum, search);
+  }
+
+  // ----------------- DELETE /users/:id -----------------
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN)
+  @Delete(':id')
+  async remove(@Param('id') userId: string) {
+    return this.userService.remove(userId);
+  }
+
+  // ----------------- PATCH /users/:id/role -----------------
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(Role.ADMIN, Role.VENDOR)
+  @Patch(':id/role')
+  async changeRole(@Param('id') userId: string, @Body('role') role: string) {
+    return this.userService.changeRole(userId, role);
+  }
   
 }

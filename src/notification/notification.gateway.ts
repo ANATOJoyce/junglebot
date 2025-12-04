@@ -22,10 +22,11 @@ export class NotificationGateway {
     const notif = await this.notificationService.markAsRead(data.id);
     return notif;
   }
-
+/*
   // Fonction pour envoyer une notification à un utilisateur
   async sendNotification(userId: string, message: string, type: string = 'new_store') {
     const notif = await this.notificationService.create(userId, message, type);
     this.server.emit(`notification:${userId}`, notif); // événement ciblé
   }
+    */
 }

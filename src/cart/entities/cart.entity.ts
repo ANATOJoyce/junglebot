@@ -1,69 +1,49 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { Address } from './address.entity';
-import { CreditLine } from './credit-line.entity';
-import { LineItem } from './line-item.entity';
-import { Customer } from 'src/customer/entities/customer.entity';
-import { ShippingMethod } from './shipping-method.entity';
+import { Product } from 'src/product/entities/product.entity';
+import { User } from 'src/user/entities/user.entity';
 
-export type CartDocument = Cart & Document;
+export enum CartStatus {
+  ACTIVE = 'active',
+  ORDERED = 'ordered',
+  CANCELLED = 'cancelled',
+}
+
 
 @Schema({ timestamps: true })
-export class Cart {
 
-  @Prop({ type: Types.ObjectId, ref: 'Customer' })
-  customerId: Customer;
 
-  @Prop({ type: String })
-  email: string;
+export class Cart extends Document {
 
-  @Prop({ type: String })
-  region_id: string;
 
-  @Prop({ type: String })
-  sales_channel_id: string;
+  
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  customer: Types.ObjectId;
 
-  @Prop({ type: String })
-  currency_code: string;
+  @Prop([
+    {
+      product: { type: Types.ObjectId, ref: 'Product', required: true },
+      quantity: { type: Number, default: 1 },
+    },
+  ])
+  items: { product: Product; quantity: number }[];
+  
 
-  @Prop({ type: Types.ObjectId, ref: 'Address' })
-  shipping_address: Address;
-
-  @Prop({ type: Types.ObjectId, ref: 'Address' })
-  billing_address: Address;
-
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'LineItem' }] })
-  items: LineItem[];
-
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'CreditLine' }] })
-  credit_lines: CreditLine[];
-
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'ShippingMethod' }] })
-  shipping_methods: ShippingMethod[];
-
-  @Prop({ default: 0 })
-  subtotal: number;
-
-  @Prop({ default: 0 })
-  tax_total: number;
-
-  @Prop({ default: 0 })
-  discount_total: number;
-
-  @Prop({ default: 0 })
-  shipping_total: number;
-
-  @Prop({ default: 0 })
+   @Prop({ type: Number, default: 0 })
   total: number;
+ 
+  @Prop({ type: Types.ObjectId, ref: 'Order' })
+  order?: Types.ObjectId; // lien vers la commande créée à partir de ce panier
 
-  @Prop({ type: Date })
-  completed_at: Date;
-
-  @Prop({ type: Object, default: {} })
-  metadata: Record<string, any>;
-
-  @Prop()
-  deleted_at: Date;
+@Prop({ 
+  type: String, 
+  enum: CartStatus,    // ici on définit l'enum
+  default: CartStatus.ACTIVE 
+})
+status: CartStatus;
 }
+
+
+export type CartDocument = Cart & Document;
 
 export const CartSchema = SchemaFactory.createForClass(Cart);

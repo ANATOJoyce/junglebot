@@ -80,12 +80,7 @@ export class Fulfillment {
   order: Types.ObjectId; // Lien vers la commande
 
 
-  // Virtuals pour la population
-  public items_details?: FulfillmentItem[];
-  public labels_details?: FulfillmentLabel[];
-  public provider_details?: FulfillmentProvider;
-  public shipping_option_details?: ShippingOption;
-  public delivery_address_details?: FulfillmentAddress;
+
 }
 
 export const FulfillmentSchema = SchemaFactory.createForClass(Fulfillment);

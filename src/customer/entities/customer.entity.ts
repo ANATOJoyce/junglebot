@@ -1,28 +1,29 @@
-// customer.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
-import { Role } from 'src/auth/role.enum';
+import { User } from 'src/user/entities/user.entity';
 
-export type CustomerDocument = Customer & Document;
 
-@Schema({
-  timestamps: true,
-  collection: 'customers',
- 
-})
-export class Customer {
-  @Prop({ required: true })
-  name: string;
+export enum CustomerStatus {
+  NOUVEAU = 'NOUVEAU',
+  VIP = 'VIP',
 
-  @Prop({ required: true, unique: true })
-  phone: string;
-
-  @Prop({ required: true, default: Role.CUSTOMER })
-  role: Role;
-
-  
 }
 
-// Crée le schema
+@Schema()
+export class Customer extends User {
+  @Prop()
+  name?: string;
+
+  @Prop({ required: true, enum: CustomerStatus, default: CustomerStatus.NOUVEAU })
+  status: string; // VIP OU NOUVEAU
+
+  @Prop()
+  createdAt?: Date;
+
+  @Prop()
+  updatedAt?: Date;
+}
+
+export type CustomerDocument = Customer & Document;
 export const CustomerSchema = SchemaFactory.createForClass(Customer);
 

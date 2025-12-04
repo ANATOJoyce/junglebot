@@ -16,6 +16,8 @@ import { JwtStrategy } from './strategies/jwt.strategie';
 import { OtpModule } from 'src/otp/otp.module';
 import { ProviderIdentity, ProviderIdentitySchema } from './entities/provider-identity.entity';
 import { LocalStrategy } from './local.strategy';
+import { Otp, OtpSchema } from 'src/otp/otp.entity';
+import { VerificationCodeModule } from 'src/verification/verification-code.module';
 
 
 @Module({
@@ -24,6 +26,9 @@ import { LocalStrategy } from './local.strategy';
     PassportModule,
     UserModule,
     MailModule,
+    OtpModule,
+        VerificationCodeModule, // ← Important !
+
     // pour être sûr que ConfigService est dispo
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -39,6 +44,7 @@ import { LocalStrategy } from './local.strategy';
       { name: AuthIdentity.name, schema: AuthIdentitySchema },
       { name: ProviderIdentity.name, schema: ProviderIdentitySchema },
       { name: VerificationCode.name, schema: VerificationCodeSchema },
+      { name: Otp.name, schema: OtpSchema }
       
     ]),
   ],

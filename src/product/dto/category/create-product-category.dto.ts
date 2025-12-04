@@ -1,27 +1,27 @@
-// dtos/category/create-product-category.dto.ts
-import { IsString, IsOptional } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString, IsArray } from 'class-validator';
+import { Type } from 'class-transformer';
+import { Types } from 'mongoose';
+import { Visibility } from 'src/product/entities/product-category.entity';
 
 export class CreateProductCategoryDto {
+  @IsNotEmpty()
   @IsString()
   name: string;
-
-  @IsString()
-  handle: string;
 
   @IsOptional()
   @IsString()
   description?: string;
 
   @IsOptional()
+  @IsEnum(Visibility)
+  visibility?: Visibility;
+
+  @IsOptional()
   @IsString()
-  mpath?: string;
+  handle?: string;
 
   @IsOptional()
-  is_active?: boolean;
-
-  @IsOptional()
-  is_internal?: boolean;
-
-  @IsOptional()
-  rank?: number;
+  @IsArray()
+  @Type(() => String)
+  products?: Types.ObjectId[];
 }

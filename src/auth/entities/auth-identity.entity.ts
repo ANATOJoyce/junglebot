@@ -36,7 +36,7 @@ export class AuthIdentity {
   @Prop({ unique: true, sparse: true })
   phone: string;
 
-      @Prop()
+  @Prop()
   otpCode?: string;
 
   @Prop()

@@ -1,10 +1,10 @@
-import { BadRequestException, Body, ConflictException, ForbiddenException, Inject, Injectable, InternalServerErrorException, NotFoundException, Post } from '@nestjs/common';
+import { BadRequestException, Body, ConflictException, ForbiddenException, HttpException, Inject, Injectable, InternalServerErrorException, NotFoundException, Post } from '@nestjs/common';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Product } from './entities/product.entity';
-import { ProductCategory } from './entities/product-category.entity';
+import { ProductCategory, Visibility } from './entities/product-category.entity';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { isValidObjectId, Model, Types } from 'mongoose';
 import { CreateProductCategoryDto } from './dto/category/create-product-category.dto';
 import { UpdateProductCategoryDto } from './dto/category/update-product-category.dto';
 import { ProductCollection } from './entities/product-collection.entity';
@@ -91,23 +91,15 @@ async createProductInStore(dto: CreateProductDto, storeId: string) {
     throw new NotFoundException("Cette boutique n'existe pas.");
   }
 
-  const existingProduct = await this.productModel.findOne({
-    storeId: store._id,
-    title: dto.title,
-  });
-
-  if (existingProduct) {
-    throw new ConflictException("Un produit avec ce nom existe déjà dans cette boutique.");
-  }
-
   const product = new this.productModel({
     title: dto.title,
     description: dto.description,
     price: dto.price,
-    
+    status: ProductStatus.DRAFT,
+    totalStock: dto.totalStock,
     imageUrl: dto.imageUrl, 
     storeId: store._id,
-    variants: dto.variants || [],
+    variants: [],
   });
 
   try {
@@ -120,41 +112,109 @@ async createProductInStore(dto: CreateProductDto, storeId: string) {
 
 }
 
+
+  async updateProduct(productId: string, dto: UpdateProductDto) {
+    const updated = await this.productModel.findByIdAndUpdate(productId, dto, { new: true });
+    if (!updated) throw new NotFoundException('Produit introuvable');
+    return updated;
+  }
+
+    async getProductById(productId: string) {
+    if (!Types.ObjectId.isValid(productId)) throw new NotFoundException('Produit introuvable');
+    const product = await this.productModel
+      .findById(productId)
+      .populate('variants')
+      .exec();
+    if (!product) throw new NotFoundException('Produit introuvable');
+    return product;
+  }
+
+  async updateStatus(productId: string, status: string) {
+    const product = await this.productModel.findByIdAndUpdate(
+      productId,
+      { status },
+      { new: true },
+    );
+    if (!product) throw new NotFoundException('Produit introuvable');
+    return product;
+  }
+
+
+// creation de variante de produit
+
+ async addVariantsToProduct(
+    productId: string,
+    variantsDto: { size: string; color: string; price: number; stock: number }[],
+  ) {
+    if (!Types.ObjectId.isValid(productId)) {
+      throw new NotFoundException(`Produit invalide : ${productId}`);
+    }
+
+    const product = await this.productModel.findById(productId);
+    if (!product) {
+      throw new NotFoundException("Produit non trouvé");
+    }
+
+    // Création des variantes et association avec le produit
+    const variants = await Promise.all(
+      variantsDto.map(async (v) => {
+        const variant = new this.variantModel({
+          ...v,
+          productId: product._id,
+        });
+        return variant.save();
+      }),
+    );
+    return variants;
+  }
+
+//get les produit avec leur variantes
 async getProductsForStore({
   storeId,
   page = 1,
   limit = 10,
   search,
 }: { storeId: string; page?: number; limit?: number; search?: string }) {
+  // Validation de l'ID de la boutique
   if (!Types.ObjectId.isValid(storeId)) {
     throw new Error(`Invalid storeId: ${storeId}`);
   }
   const storeObjectId = new Types.ObjectId(storeId.trim());
 
+  // Construction de la requête
   const query: any = { storeId: storeObjectId };
   if (search) {
-    query.title = { $regex: search, $options: "i" };
+    query.title = { $regex: search, $options: 'i' };
   }
 
-  // Récupération des produits avec pagination et populate de la boutique
+  // Récupération des produits avec pagination
   const products = await this.productModel
     .find(query)
-    .populate('storeId', 'name') // <- ici on inclut le nom de la boutique
+    .populate('storeId', 'name')      // Populate pour la boutique
+    .populate('variants')             // Populate pour les variantes
     .skip((page - 1) * limit)
     .limit(limit)
     .sort({ createdAt: -1 })
     .exec();
 
-  // Calcul du stock total par produit
-  const productsWithTotalStock = products.map((product) => {
-    const totalStock = product.variants?.reduce((sum, v) => sum + (v.stock || 0), 0) ?? 0;
-    return {
-      ...product.toObject(),
-      totalStock,
-      store: product.storeId, // rename pour correspondre au front
-    };
-  });
+  // Calcul du stock total (stock produit + stock de toutes ses variantes)
+const productsWithTotalStock = products.map((product) => {
+  const variants = product.variants as unknown as Variant[];
 
+  const variantsStock = variants?.reduce(
+    (sum, variant) => sum + (variant.stock ?? 0),
+    0
+  ) ?? 0;
+
+  return {
+    ...product.toObject(),
+    totalStock: (product.totalStock ?? 0) + variantsStock,
+    store: product.storeId,
+  };
+});
+
+
+  // Comptage total pour pagination
   const total = await this.productModel.countDocuments(query);
 
   return {
@@ -169,7 +229,56 @@ async getProductsForStore({
 }
 
 
+async createVariant(productId: string, variantData: Partial<Variant>) {
+  // Vérifier que le produit existe
+  const product = await this.productModel.findById(productId);
+  if (!product) {
+    throw new Error('Produit non trouvé');
+  }
 
+  // Créer la variante avec l'id du produit
+  const variant = new this.variantModel({ ...variantData, productId });
+  await variant.save();
+
+  // Ajouter la variante au produit
+  product.variants.push(variant._id);
+  await product.save();
+
+  return variant;
+}
+
+
+  async getProductWithVariants(productId: string) {
+    if (!Types.ObjectId.isValid(productId)) {
+      throw new NotFoundException(`Invalid productId: ${productId}`);
+    }
+
+    const product = await this.productModel
+      .findById(productId)
+      .populate('variants') // transforme ObjectId[] en Variant[]
+      .exec();
+
+    if (!product) {
+      throw new NotFoundException('Produit non trouvé');
+    }
+
+    // Cast type-safe pour TypeScript
+    const variants = product.variants as unknown as Variant[];
+
+    // Calcul du stock total
+    const variantsStock = variants?.reduce(
+      (sum, variant) => sum + (variant.stock ?? 0),
+      0
+    ) ?? 0;
+
+    const totalStock = (product.totalStock ?? 0) + variantsStock;
+
+    return {
+      ...product.toObject(),
+      totalStock,
+      variants, // variantes peuplées et typées
+    };
+  }
 
  async getProductsByStore(storeId: string, userId: string) {
     // Vérifie si la boutique appartient à l'utilisateur
@@ -230,9 +339,8 @@ async getMyProduct(storeId: String){
 
 
  //**SEULELEMENT LES PRODUITS QUI ON UN STATUT PUBLISHED QUI SERONT VUS DE TOUS */
-  async getPublishedProducts(): Promise<Product[]> {
-  return this.productModel.find({ status: 'published' }).exec();
-  }
+ 
+
  //**IMPORTANT  FILTRE ET PAGINATION DES PRODUIT PUNLIER*/
 
  
@@ -272,8 +380,32 @@ async getMyProduct(storeId: String){
 }
 
 
- 
+ // Recherche par budget
+  async searchProductsByBudget(min?: number, max?: number): Promise<Product[]> {
+    const filter: any = {};
+    if (min !== undefined) filter.price = { $gte: min };
+    if (max !== undefined)
+      filter.price = { ...(filter.price || {}), $lte: max };
 
+    return this.productModel
+      .find(filter)
+      .select('title description imageUrl price variants category collection')
+      .lean()
+      .exec();
+  }
+
+ // produit par collection
+  async searchProductsByCollection(collection: string): Promise<Product[]> {
+    if (!collection || collection.trim() === '') {
+      throw new BadRequestException('La collection est requise.');
+    }
+
+    return this.productModel
+      .find({ collection })
+      .select('title description imageUrl price variants category collection')
+      .lean()
+      .exec();
+  }
 
 
   async findAllAdmin(): Promise<Product[]> {
@@ -290,14 +422,19 @@ async getMyProduct(storeId: String){
 
 
 
-  async findOne(id: string): Promise<Product> {
-    const product = await this.productModel.findById(id).populate('vendor').exec();
-    if (!product) {
-      throw new NotFoundException(`Produit avec l'id ${id} introuvable`);
-    }
-    return product;
+
+async findOne(id: string) {
+  if (!isValidObjectId(id)) {
+    throw new BadRequestException(`ID invalide: ${id}`);
   }
 
+  const product = await this.productModel.findById(id).populate(['storeId', 'imageUrl', 'variants']);
+  if (!product) {
+    throw new NotFoundException(`Produit avec l'ID ${id} introuvable`);
+  }
+
+  return product;
+}
 
 
 
@@ -412,27 +549,27 @@ async getProductsWithFilters(
     return this.productModel.find(query).exec();
   }
 
-async searchProductsByTitleFuzzy(query: string) {
-    if (!query || query.trim() === '') {
-      throw new Error('Le mot-clé est requis.');
-    }
+  async searchProductsByTitleFuzzy(query: string) {
+      if (!query || query.trim() === '') {
+        throw new Error('Le mot-clé est requis.');
+      }
 
-    const products = await this.productModel
-      .find()
-      .select('title description imageUrl price variants')
-      .lean()
-      .exec();
+      const products = await this.productModel
+        .find()
+        .select('title description imageUrl price variants')
+        .lean()
+        .exec();
 
-    const fuse = new Fuse(products, {
-      keys: ['title'],
-      threshold: 0.4,
-      distance: 100,
-      includeScore: true,
-    });
+      const fuse = new Fuse(products, {
+        keys: ['title'],
+        threshold: 0.4,
+        distance: 100,
+        includeScore: true,
+      });
 
-    const results = fuse.search(query);
-    return results.map(r => r.item);
-}
+      const results = fuse.search(query);
+      return results.map(r => r.item);
+  }
 
 
   async remove(id: string): Promise<void> {
@@ -441,9 +578,7 @@ async searchProductsByTitleFuzzy(query: string) {
 
 
 
-  async updateProduct(id: string, dto: UpdateProductDto) {
-    return this.productModel.findByIdAndUpdate(id, dto, { new: true });
-  }
+ 
 
   async upsertProduct(title: string, dto: CreateProductDto) {
     return this.productModel.findOneAndUpdate(
@@ -825,17 +960,101 @@ async searchProductsByTitleFuzzy(query: string) {
     return this.typeModel.findById(id);
   }
 
-
-  //tag
-
-  // product.service.ts (bloc ProductType)
+    // product.service.ts (bloc ProductType)
 
   async createProductImage(dto: CreateProductImageDto) {
     return this.typeModel.create(dto);
   }
 
-  
 
+
+  /**COLLECTION DE PRODUIT */
+
+  async findCategoriesByStore(storeId: string, page = 1, limit = 10) {
+  const skip = (page - 1) * limit;
+
+  const [categories, total] = await Promise.all([
+    this.categoryModel
+      .find({ store: storeId })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    this.categoryModel.countDocuments({ store: storeId }),
+  ]);
+
+  return {
+    data: categories,
+    meta: {
+      total,
+      page,
+      pageSize: limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}
+
+
+
+  
+  async createCategoryInStore(dto: CreateProductCategoryDto, storeId: string) {
+    const category = new this.categoryModel({
+      ...dto,
+      store: storeId,
+      visibility: dto.visibility || Visibility.PRIVATE,
+    });
+    return category.save();
+  }
  
+
+  async createCollectionInStore(dto: CreateProductCollectionDto, storeId: string) {
+  const existing = await this.collectionModel.findOne({ handle: dto.handle, store: storeId });
+  if (existing) {
+    throw new BadRequestException('Une collection avec ce handle existe déjà dans cette boutique.');
+  }
+
+  const collection = new this.collectionModel({
+    ...dto,
+    store: storeId,
+    visibility: dto.visibility || Visibility.PRIVATE,
+  });
+
+  return collection.save();
+  }
+
+async findCollectionsByStore(storeId: string, page = 1, limit = 10) {
+  const skip = (page - 1) * limit;
+
+  const [collections, total] = await Promise.all([
+    this.collectionModel
+      .find({ store: storeId })
+      .populate('products', 'name price') //  ici tu récupères juste les champs utiles
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    this.collectionModel.countDocuments({ store: storeId }),
+  ]);
+
+  return {
+    data: collections,
+    meta: {
+      total,
+      page,
+      pageSize: limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}
+
+async getPublishedProducts() {
+  return this.productModel
+    .find({ status: ProductStatus.PUBLISHED })
+    .populate("storeId", "name")  // on récupère le nom de la boutique
+    .populate("variants")
+    .sort({ createdAt: -1 })
+    .exec();
+}
+
+
+
 
 }

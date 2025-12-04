@@ -1,64 +1,38 @@
+// user.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { Document, Types } from 'mongoose';
-import { CustomerGroup } from 'src/customer/entities/customer-group.entity';
-import { Store } from 'src/store/entities/store.entity';
+import { Document, Types } from 'mongoose';
+import { Role } from 'src/auth/role.enum';
 
-@Schema({
-  timestamps: true,
-  collection: 'users',
-  toJSON: {
-    virtuals: true,
-    transform: (_, ret:{ _id?: any; __v?: number; id?: string; password?: string; }) => {
-      ret.id = ret._id.toString();
-      delete ret._id;
-      delete ret.__v;
-      delete ret.password; // Optionnel : pour ne jamais exposer le mot de passe en JSON
-      return ret;
-    },
-  },
-})
+@Schema({  timestamps: true })
 export class User extends Document {
- 
-  @Prop({ required: false, index: true })
-  first_name?: string;
+  @Prop({ required: true })
+  first_name: string;
 
-  @Prop({ required: false, index: true })
-  last_name?: string;
+  @Prop({ required: true })
+  last_name: string;
 
-  @Prop({ required: true, unique: true, index: true })
+  
+  @Prop({ required: true })
+  phone: string;
+
+  @Prop({ required: true, unique: true })
   email: string;
 
   @Prop({ required: true })
-  password: string;  // <-- ajout obligatoire !
-  
-  @Prop({ required: false, index: true })
-  phone?: string;
+  password: string;
 
-  @Prop({ type: String, default: 'user', index: true })
-  role: string;
+  @Prop({ type: String, enum: Role, required: true })
+  role: Role;
 
-  @Prop({ type: Types.ObjectId, ref: 'CustomerGroup' })
-  customerGroup?: CustomerGroup | Types.ObjectId;
+  @Prop({ required: false })
+  authIdentity: string;
 
- @Prop({
-  type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Store' }],
-  default: [],
-})
-store: mongoose.Types.ObjectId[];
-
-
-  @Prop({ type: String, required: false })
-  authIdentity?: string;
-
-  @Prop({ type: Date, default: null })
-  deleted_at?: Date;
-
-  createdAt?: Date;
-  updatedAt?: Date;
-
-
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Store' }] })
+  stores?: Types.ObjectId[];
 
 
 }
+
+export type UserDocument = User & Document;
 
 export const UserSchema = SchemaFactory.createForClass(User);

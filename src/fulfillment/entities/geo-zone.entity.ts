@@ -22,6 +22,7 @@ export type GeoZoneDocument = GeoZone & Document;
     }
   }
 })
+
 export class GeoZone {
   @Prop({
     type: String,

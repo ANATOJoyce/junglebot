@@ -1,44 +1,31 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Schema as MongooseSchema } from 'mongoose';
+import { Document, Types } from 'mongoose';
 import { Region } from './region.entity';
 
 export type CountryDocument = Country & Document;
-@Schema({
-  timestamps: true,
-  toJSON: { virtuals: true },
-  toObject: { virtuals: true },
-  collection: 'region_country',
-})
-export class Country  {
-  @Prop({
-    type: String,
-    required: true,
-    unique: true,
-    index: true,
-  })
-  iso_2: string;
+
+@Schema({ timestamps: true })
+export class Country {
+  @Prop({ required: true, unique: true, index: true })
+  name: string; // Ex: "France", "Nigeria"
+
+  @Prop({ required: true, unique: true, length: 2 })
+  iso2: string; // Ex: "FR", "NG"
+
+  @Prop({ required: true, unique: true, length: 3 })
+  iso3: string; // Ex: "FRA", "NGA"
 
   @Prop({ required: true })
-  iso_3: string;
+  currency_code: string; // Ex: "EUR", "NGN"
+
+  @Prop({ default: 0 }) // taux de TVA par défaut, ex: 18
+  tax_rate: number;
 
   @Prop({ required: true })
-  num_code: string;
+  phoneCode: string; // Ex: "+33", "+228"
 
-  @Prop({ required: true, index: true })
-  name: string;
-
-  @Prop({ required: true })
-  display_name: string;
-
-  @Prop({
-    type: MongooseSchema.Types.ObjectId,
-    ref: 'Region',
-    index: true,
-  })
-  region?: Region;
-
-  @Prop({ type: Object })
-  metadata?: Record<string, unknown>;
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Region' }] })
+  regions: Region[];
 }
 
 export const CountrySchema = SchemaFactory.createForClass(Country);

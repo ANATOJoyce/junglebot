@@ -1,78 +1,132 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, UseGuards, Request, Patch, NotFoundException, Req, BadRequestException} from '@nestjs/common';
+import { 
+  Controller, Get, Post, Body, Param, Put, Delete, 
+  UseGuards, Req, 
+  BadRequestException,
+  Patch
+} from '@nestjs/common';
 import { PromotionService } from './promotion.service';
-import { CreatePromotionDto } from './dto/create-promotion.dto';
-import { UpdatePromotionDto } from './dto/update-promotion.dto';
-import { Role } from 'src/auth/role.enum';
-import { Roles } from 'src/auth/roles.decorator';
-import { AuthGuard } from '@nestjs/passport';
-import { RolesGuard } from 'src/auth/roles.guards';
-import { AuthRequest } from 'src/types/auth-request';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { StoreGuard } from 'src/auth/StoreAuthGuard';
+
+import { UpdatePromotionDto } from './dto/update-promotion.dto';
+import { CreatePromotionConditionDto } from './dto/create-promotion-condition.dto';
+import { isValidObjectId } from 'mongoose';
+import { PromotionType } from './entities/promotion-type.enum';
+import { CreatePromotionDto } from './dto/create-promotion.dto';
 
 @Controller('promotions')
 export class PromotionController {
   constructor(private readonly promotionService: PromotionService) {}
 
+  // ---------------- CREATE ---------------- //
+
+
+  @UseGuards(JwtAuthGuard, StoreGuard)
+@Post('conditions/:storeId')
+async createCondition(@Body() dto: CreatePromotionConditionDto) {
+  return this.promotionService.createPromotionCondition(dto);
+}
+
+  @UseGuards(JwtAuthGuard, StoreGuard)
+  @Post(':storeId')
+  async createPromotion(
+    @Param('storeId') storeId: string,
+    @Body() dto: CreatePromotionDto,
+  ) {
+    try {
+    
+
+      return await this.promotionService.createPromotion(dto, storeId);
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+  }
+
+
+@UseGuards(JwtAuthGuard, StoreGuard)
+@Get('conditions/:storeId')
+async getAllConditions() {
+  return this.promotionService.getAllPromotionConditions();
+}
+
+  @Get(':storeId')
+  async getPromotions(@Param('storeId') storeId: string) {
+    return this.promotionService.findAllByStore(storeId);
+  }
+
+// promotion.controller.ts
+@Get(':storeId/:id')
+async getPromotionById(@Param('id') id: string) {
+  return this.promotionService.findById(id);
+}
+
+
+@UseGuards(JwtAuthGuard, StoreGuard)
+@Patch(':id/status')
+async updateStatus(
+  @Param('id') id: string,
+  @Body('status') status: string,
+) {
+  return this.promotionService.updateStatus(id, status);
+}
+
   
-  @Get('me')
-  getMyPromotions(@Req() req) {
-    return this.promotionService.findAllByUser(req.user.sub);
-  }
+  /**
+   * Crée une promotion de type "Amount" (Order/Product)
+   */
 
 
-  @Post()
-  create(@Body() dto: CreatePromotionDto) {
-    return this.promotionService.create(dto);
-  }
+  /**
+   * Crée une promotion de type "Buy X Get Y"
+   */
 
-  @Delete(':id')
-  async softDelete(@Param('id') id: string) {
-    return this.promotionService.softDelete(id);
-  }
+ 
 
-  @UseGuards(AuthGuard('jwt'), StoreGuard)
-  @Get("my")
-  async findAll(@Req() req: any) {
-    const storeId = req.user.storeId; // récupéré depuis le JWT
-    return this.promotionService.findAll(storeId);
-  }
+  // ---------------- READ ---------------- //
 
-  //LES ADMINI AURONS ACCES A MODIFIER AUTOMATIQUEMENT LE STATUS DES PROMOTIONS 
+  /**
+   * Récupérer toutes les promotions d’une boutique
+   */
 
-  @Patch('maj-statuts')
-  @Roles(Role.ADMIN, Role.VENDOR)
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  forceUpdateStatus() {
-    return this.promotionService.updateAllStatuses();
-  }
+
+@UseGuards(JwtAuthGuard, StoreGuard)
+ @Get(':storeId')
+async findAll(@Req() req) {
+  const storeId = req.user.store;
+  return this.promotionService.findAllByStore(storeId);
+}
+
+/*
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.promotionService.findOne(id);
+  async findOne(@Param('id') id: string) {
+    return await this.promotionService.findOne(id);
   }
+  /**
+   * Récupérer une promotion par son ID
+   */
 
-  @Put(':id')
-  update(@Param('id') id: string, @Body() updatePromotionDto: UpdatePromotionDto) {
-    return this.promotionService.update(id, updatePromotionDto);
-  }
 
+  // ---------------- UPDATE ---------------- //
+
+  /**
+   * Modifier une promotion
+   */
+
+
+  // ---------------- DELETE ---------------- //
+
+  /**
+   * Supprimer une promotion
+   */
+  @UseGuards(JwtAuthGuard, StoreGuard)
   @Delete(':id')
-  @Roles(Role.ADMIN, Role.VENDOR)
-  remove(@Param('id') id: string) {
-    return this.promotionService.remove(id);
-  }
-
-  @Post(':id/discount')
-  async calculateDiscount(
-    @Param('id') id: string,
-    @Body() payload: { cart: any },
-  ) {
-    const promo = await this.promotionService.findOne(id);
-    if (!promo) {
-  throw new NotFoundException('Promotion introuvable');
-}
-    return this.promotionService.calculatePromotionDiscount(promo, payload.cart);
+  async remove(@Param('id') id: string, @Req() req) {
+    const storeId = req.user.store;
+    return this.promotionService.remove(id, storeId);
   }
 
 
+
+  
 }

@@ -10,7 +10,6 @@ import { CreatePriceListRuleDto } from './dto/create-price-list-rule.dto' ;
 import { UpdatePriceListRuleDto } from './dto/update-price-list-rule.dto';
 import { UpdatePriceListDto } from './dto/update-price-list.dto';
 import { CreatePriceListDto } from './dto/create-price-list.dto';
-import { Customer, CustomerDocument } from 'src/customer/entities/customer.entity';
 import { UpdatePricePreferenceDto } from './dto/update-price-preference.dto';
 import { CreatePricePreferenceDto } from './dto/create-price-preference.dto';
 import { CreatePriceRuleDto } from './dto/create-price-rule.dto';
@@ -23,6 +22,7 @@ import { CreateMoneyAmountDTO } from './dto/create-money-amount.dto';
 import { MoneyAmount } from './entities/money-amount.entity';
 import { Currency, CurrencyDocument } from 'src/currency/entities/currency.entity';
 import { Variant } from 'src/product/entities/product-variant.entity';
+import { Customer, CustomerDocument } from 'src/customer/entities/customer.entity';
 
 
 @Injectable()

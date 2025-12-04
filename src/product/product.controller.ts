@@ -45,11 +45,36 @@ export class ProductController {
     return this.productService.retrieveProduct(id);
   }*/
 
+  @Get('search')
+  async search(@Query('title') title: string) {
+    return this.productService.searchProductsByTitleFuzzy(title);
+  }
+
+/*
+@Get(':id')
+async findOne(@Param('id') id: string) {
+  const product = await this.productService.findOne(id);
+  if (!product) throw new NotFoundException(`Produit ${id} introuvable`);
+  return { product };
+}
+*/
+  @Get("published")
+  async getPublishedProducts() {
+    const products = await this.productService.getPublishedProducts();
+    return products;
+  }
+
+  @Get(':id')
+  async getProduct(@Param('id') id: string) {
+    return this.productService.getProductWithVariants(id);
+  }
+
   @Put(':id')
   @Roles(Role.ADMIN, Role.VENDOR)
   update(@Param('id') id: string, @Body() dto: UpdateProductDto) {
     return this.productService.updateProduct(id, dto);
   }
+
 
   @Delete(':id')
   @Roles(Role.ADMIN, Role.VENDOR)
@@ -70,6 +95,8 @@ export class ProductController {
     return this.productService.createProductInStore(dto, storeId);
   }
 
+
+
 @UseGuards(JwtAuthGuard, StoreGuard)
 @Roles(Role.ADMIN, Role.VENDOR, Role.CUSTOMER)
   @Get('store/:storeId')
@@ -82,7 +109,6 @@ export class ProductController {
   ) {
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
-  console.log('storeId reçu:', storeId); 
     // Construction des paramètres de recherche
     const queryOptions: any = {
       storeId,
@@ -118,7 +144,7 @@ export class ProductController {
 
 
   // product.controller.ts
-@UseGuards(AuthGuard('jwt'), StoreGuard)
+  @UseGuards(AuthGuard('jwt'), StoreGuard)
 
     @Post(':storeId')
     async createProduct(
@@ -130,10 +156,10 @@ export class ProductController {
         store: storeId, // On injecte le storeId ici
       });
     }
-*/
+
 
 @UseGuards(AuthGuard('jwt'), StoreGuard)
-@Get('my') 
+@Get(':id') 
 async getMyProducts(
   @Req() req: Request & { store: any },
   @Query() query: { page?: string; limit?: string; sort?: string }
@@ -155,6 +181,7 @@ async getMyProducts(
     sort
   );
 }
+*/
 
 
 
@@ -170,14 +197,11 @@ async getMyProducts(
       minPrice: minPrice ? Number(minPrice) : undefined,
       maxPrice: maxPrice ? Number(maxPrice) : undefined,
       size,
-      color,
+      color, 
     });
   }
 
-  @Get('search')
-  async search(@Query('title') title: string) {
-    return this.productService.searchProductsByTitleFuzzy(title);
-  }
+
 
 
   @Get()
@@ -186,7 +210,18 @@ async getMyProducts(
   }
  
  
+  @Patch(':id')
+  async updateProduct(@Param('id') id: string, @Body() dto: UpdateProductDto) {
+    return this.productService.updateProduct(id, dto);
+  }
 
+  // Mettre à jour le status
+  @Patch(':id/status')
+  async updateStatus(@Param('id') id: string, @Body('status') status: string) {
+    return this.productService.updateStatus(id, status);
+  }
+
+ 
 
   // ==============================================
   // SECTION 4: PRODUCT VARIANTS
@@ -209,11 +244,6 @@ async getMyProducts(
   // SECTION 5: PRODUCT CATEGORIES
   // ==============================================
 
-  @Post('category')
-  @Roles(Role.ADMIN, Role.VENDOR)
-  createCategory(@Body() dto: CreateProductCategoryDto) {
-    return this.productService.createCategory(dto);
-  }
 
   @Get('category')
   listCategories() {
@@ -224,11 +254,7 @@ async getMyProducts(
   // SECTION 6: PRODUCT COLLECTIONS
   // ==============================================
 
-  @Post('collections')
-  @Roles(Role.ADMIN, Role.VENDOR)
-  createCollection(@Body() dto: CreateProductCollectionDto) {
-    return this.productService.createProductCollection(dto);
-  }
+
 
   @Get('collections')
   listCollections() {
@@ -269,7 +295,7 @@ async getMyProducts(
   // ==============================================
 
   @Get('public/pagination')
-  async getPublishedProducts(
+  async getPublishedProduct(
     @Query('page') page = 1,
     @Query('limit') limit = 10,
     @Query('search') search = '',
@@ -297,26 +323,15 @@ async getMyProducts(
   }
 
 
-  @Get('recommendations')
-  async getRecommendations(@Query('budget') budget: string) {
-    const parsedBudget = parseFloat(budget);
-    if (isNaN(parsedBudget)) {
-      throw new BadRequestException('Budget must be a valid number');
-    }
-    return this.productService.recommendProductsByBudget(parsedBudget);
+  @Get('budget')
+  async searchByBudget(
+    @Query('min') min: number,
+    @Query('max') max: number
+  ) {
+    return this.productService.searchProductsByBudget(min, max);
   }
 
 
-    @Get('recommandes')
-    async getRecommendedProducts(@Query('budget') budget: string) {
-      const numericBudget = parseFloat(budget);
-      return this.productService.recommendProductsByBudget(numericBudget);
-    }
-
-    @Post('recommandes')
-    async postRecommendedProducts(@Body('budget') budget: number) {
-      return this.productService.recommendProductsByBudget(budget);
-    }
 
 
 
@@ -341,4 +356,52 @@ async getMyProducts(
   async postAllWithCategory() {
     return this.productService.findAllByCtegorie();
   }
+
+@Get('category/store/:storeId')
+async getCategoriesByStore(
+  @Param('storeId') storeId: string,
+  @Query('page') page = '1',
+  @Query('limit') limit = '10',
+) {
+  return this.productService.findCategoriesByStore(storeId, +page, +limit);
+}
+
+@UseGuards(JwtAuthGuard, StoreGuard)
+@Roles(Role.ADMIN, Role.VENDOR)
+@Post(':storeId/category')
+async createCategory(
+  @Param('storeId') storeId: string,
+  @Body() dto: CreateProductCategoryDto,
+) {
+  return this.productService.createCategoryInStore(dto, storeId);
+}
+
+
+// Récupérer toutes les collections d’une boutique
+@Get('collection/store/:storeId')
+async getCollectionsByStore(
+  @Param('storeId') storeId: string,
+  @Query('page') page = '1',
+  @Query('limit') limit = '10',
+) {
+  return this.productService.findCollectionsByStore(storeId, +page, +limit);
+}
+
+// Créer une collection pour une boutique
+@Post('collection/store/:storeId')
+async createCollection(
+  @Param('storeId') storeId: string,
+  @Body() dto: CreateProductCollectionDto,
+) {
+  return this.productService.createCollectionInStore(dto, storeId);
+}
+
+
+  @Post(':id/variant')
+  async createVariant(@Param('id') id: string, @Body() body: any) {
+    const { size, color, price, stock } = body;
+    return this.productService.createVariant(id, { size, color, price, stock });
+  }
+
+
 }

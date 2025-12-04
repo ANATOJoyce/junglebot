@@ -1,43 +1,43 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Schema as MongooseSchema, Types } from 'mongoose';
-import { CreditLine } from 'src/cart/entities/credit-line.entity';
-import { Customer } from 'src/customer/entities/customer.entity';
-import { OrderItem } from './order-item.entity';
-import { Payment } from 'src/payment/entities/payment.entity';
+import { Document, Types } from 'mongoose';
+import { User } from 'src/user/entities/user.entity';
+import { Product } from 'src/product/entities/product.entity';
+import { Cart } from 'src/cart/entities/cart.entity';
 import { OrderStatus } from 'src/order/order-status.enum';
-
-export type OrderDocument = Order & Document & { _id: Types.ObjectId };
-
 
 
 @Schema({ timestamps: true })
-export class Order {
+export class Order extends Document {
+  
 
-  @Prop({ type: Number, required: true })
+  @Prop({ type: Number, unique: true })
   display_id: number;
+  
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  customer: User;
 
-  @Prop({ type: String, enum: Object.values(OrderStatus), default: OrderStatus.PENDING })
+  @Prop([
+    {
+      product: { type: Types.ObjectId, ref: 'Product', required: true },
+      quantity: { type: Number, default: 1 },
+      price: { type: Number, required: true },
+    },
+  ])
+  items: { product: Product; quantity: number; price: number }[];
+
+  @Prop({ default: 0 })
+  total: number;
+
+  @Prop({ type: String, enum: OrderStatus, default: OrderStatus.PENDING })
   status: OrderStatus;
 
-  @Prop({ type: String, required: true })
-  currency_code: string;
+  @Prop({ type: Types.ObjectId, ref: 'Cart' })
+  cart?: Cart; // Lien vers le panier d’origine
 
-  @Prop({ type: [{ type: MongooseSchema.Types.ObjectId, ref: 'OrderItem' }], default: [] })
-  items: OrderItem[]; //les produits
+  createdAt?: Date;
+  updatedAt?: Date;
 
-  @Prop({ type: [{ type: MongooseSchema.Types.ObjectId, ref: 'CreditLine' }], default: [] })
-  credit_lines: CreditLine[];
-
-  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Customer', default: null })
-  customer_id?: Customer | null;
-
-  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Store', required: true })
-  store: string;
-
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Payment' }] })
-  payments?: Payment[];
-
- 
 }
 
+export type OrderDocument = Order & Document;
 export const OrderSchema = SchemaFactory.createForClass(Order);

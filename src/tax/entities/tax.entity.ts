@@ -1,20 +1,21 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { Product } from '../../product/entities/product.entity';
-import { Region } from '../../region/entities/region.entity';
+import { Country } from 'src/region/entities/country.entity';
 
 export type TaxDocument = Tax & Document;
 
 @Schema({ timestamps: true })
 export class Tax {
   @Prop({ required: true })
-  rate: number;
+  name: string; // Ex: TVA
 
-  @Prop({ type: Types.ObjectId, ref: 'Region' })
-  region: Region;
+  @Prop({ required: true })
+  rate: number; // Exemple: 18 pour 18%
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Product' }], default: [] })
-  products: Product[];
+  @Prop({ type: Types.ObjectId, ref: Country.name, required: true })
+  country: Types.ObjectId; // Taxe liée à un pays spécifique
+
+
 }
 
 export const TaxSchema = SchemaFactory.createForClass(Tax);

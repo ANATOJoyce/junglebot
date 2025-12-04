@@ -1,23 +1,22 @@
-// store/dto/update-store.dto.ts
-import { IsOptional, IsEnum, IsString } from 'class-validator';
+import { IsMongoId, IsNotEmpty, IsOptional, IsString, IsEnum } from 'class-validator';
 import { StoreStatus } from '../update-store-status.dto';
 
 export class CreateStoreDto {
-  @IsOptional()
   @IsString()
-  name?: string;
+  @IsNotEmpty()
+  name: string;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  country: string; // ID de la région choisie
+
+  @IsMongoId()
+  @IsNotEmpty()
+  owner: string; // ID du vendeur connecté
 
   @IsOptional()
   @IsString()
-  default_sales_channel_id?: string;
-
-  @IsOptional()
-  @IsString()
-  default_region_id?: string;
-
-  @IsOptional()
-  @IsString()
-  default_location_id?: string;
+  supported_currencies?: string; // sera défini automatiquement côté service
 
   @IsOptional()
   @IsEnum(StoreStatus)

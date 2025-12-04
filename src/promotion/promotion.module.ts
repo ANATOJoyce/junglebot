@@ -1,40 +1,33 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-
+import { JwtModule } from '@nestjs/jwt'; // Add this import
 import { PromotionService } from './promotion.service';
 import { PromotionController } from './promotion.controller';
-
-import { ApplicationMethod, ApplicationMethodSchema } from './entities/application-method.entity';
-import { CampaignBudget, CampaignBudgetSchema } from './entities/campaign-budger.entity';
-import { Campaign, CampaignSchema } from './entities/campaign.entity';
-import { PromotionRule, PromotionRuleSchema } from './entities/promotion-rule.entity';
-import { PromotionRuleValue, PromotionRuleValueSchema } from './entities/promotion-rule-value.entity';
 import { Promotion, PromotionSchema } from './entities/promotion.entity';
-import { Product, ProductSchema } from 'src/product/entities/product.entity';
-import { CustomerGroup, CustomerGroupSchema } from 'src/customer/entities/customer-group.entity';
-import { MoneyAmount, MoneyAmountSchema } from 'src/pricing/entities/money-amount.entity';
-import { StoreModule } from 'src/store/store.module';
+import { PromotionCondition, PromotionConditionSchema } from './entities/promotion-condition.entity';
+import { PromotionAmount, PromotionAmountSchema } from './entities/promotion-amount.entity';
+import { PromotionBuyXGetY, PromotionBuyXGetYSchema } from './entities/promotion-buyxgety.entity';
 import { StoreGuard } from 'src/auth/StoreAuthGuard';
+import { StoreService } from 'src/store/store.service';
+import { StoreModule } from 'src/store/store.module';
+import { MailModule } from 'src/mail/mail.module';
+import { VerificationCodeModule } from 'src/verification/verification-code.module';
 
 @Module({
   imports: [
-     StoreModule,
+    StoreModule,
+    MailModule,
+    VerificationCodeModule,
+    JwtModule.register({ secret: 'your-secret-key', signOptions: { expiresIn: '60m' } }), // Register JwtModule here
     MongooseModule.forFeature([
-      { name: ApplicationMethod.name, schema: ApplicationMethodSchema },
-      { name: CampaignBudget.name, schema: CampaignBudgetSchema },
-      { name: Campaign.name, schema: CampaignSchema },
-      { name: PromotionRule.name, schema: PromotionRuleSchema },
-      { name: PromotionRuleValue.name, schema: PromotionRuleValueSchema },
       { name: Promotion.name, schema: PromotionSchema },
-      { name: Product.name, schema: ProductSchema },
-      { name: CustomerGroup.name, schema: CustomerGroupSchema },
-      { name: MoneyAmount.name, schema: MoneyAmountSchema },
-
+      { name: PromotionCondition.name, schema: PromotionConditionSchema },
+      { name: PromotionAmount.name, schema: PromotionAmountSchema },
+      { name: PromotionBuyXGetY.name, schema: PromotionBuyXGetYSchema },
     ]),
   ],
   controllers: [PromotionController],
-  providers: [PromotionService, StoreGuard],
+  providers: [PromotionService, StoreGuard, StoreService],
+  exports: [PromotionService],
 })
 export class PromotionModule {}
-
-/*la conception complète et logique des promotions pour un système e-commerce multivendeur*/

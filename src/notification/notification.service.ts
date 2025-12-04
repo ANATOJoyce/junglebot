@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { NotificationDocument } from './notification.entity';
+import { Notification, NotificationDocument } from './notification.entity';
 
 @Injectable()
 export class NotificationService {
@@ -9,26 +9,34 @@ export class NotificationService {
     @InjectModel(Notification.name) private notificationModel: Model<NotificationDocument>,
   ) {}
 
-  async create(userId: string, message: string, type: string = 'new_store') {
-    const notification = new this.notificationModel({ userId, message, type });
+  // Créer une nouvelle notification
+  async create(userId: string, message: string) {
+    const notification = new this.notificationModel({ userId, message });
     return notification.save();
   }
 
-  async findUnread(userId: string) {
+  // Récupérer toutes les notifications non lues pour un utilisateur
+  async getUnreadNotifications(userId: string) {
     return this.notificationModel.find({ userId, read: false }).sort({ createdAt: -1 }).exec();
   }
 
-  async markAsRead(id: string) {
-    return this.notificationModel.findByIdAndUpdate(id, { read: true }, { new: true }).exec();
+  // Récupérer toutes les notifications d'un utilisateur
+  async getAllNotifications(userId: string) {
+    return this.notificationModel.find({ userId }).sort({ createdAt: -1 }).exec();
   }
 
+  // Marquer une notification comme lue
+  async markAsRead(notificationId: string) {
+    return this.notificationModel.findByIdAndUpdate(notificationId, { read: true }, { new: true }).exec();
+  }
+
+  // Créer une notification pour un utilisateur avec un message spécifique
   async createForUser(userId: string, message: string) {
-    const notification = await this.notificationModel.create({
-      user: userId,
+    const notification = new this.notificationModel({
+      userId,
       message,
       read: false,
-      createdAt: new Date(),
     });
-    return notification;
+    return notification.save();
   }
 }

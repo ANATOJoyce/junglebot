@@ -17,6 +17,7 @@ import { StoreModule } from 'src/store/store.module';
 import { ProductCategory, ProductCategorySchema } from './entities/product-category.entity';
 import { StoreGuard } from 'src/auth/StoreAuthGuard';
 import { Variant, VariantSchema } from './entities/product-variant.entity';
+import { User, UserSchema } from 'src/user/entities/user.entity';
 
 @Module({
   imports: [
@@ -32,6 +33,8 @@ import { Variant, VariantSchema } from './entities/product-variant.entity';
       { name: ProductTag.name, schema: ProductTagSchema },
       { name: ProductType.name, schema: ProductTypeSchema },
       { name: Store.name, schema: StoreSchema },
+      { name: User.name, schema: UserSchema },
+
       
     ]),
   ],

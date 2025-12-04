@@ -5,6 +5,7 @@ import {
   IsPhoneNumber,
   MinLength,
   IsEnum,
+  IsOptional,
 } from 'class-validator';
 import { Role } from '../role.enum';
 
@@ -27,6 +28,10 @@ export class RegisterDto {
   @IsNotEmpty()
   @MinLength(6)
   password: string;
+
+  @IsOptional()
+  @IsEnum(Role)
+  role?: Role;
 
 
 }

@@ -24,6 +24,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { RolesGuard } from './roles.guards';
 import { RequestCodeDto } from './dto/request-code.dto';
 import { OtpService } from 'src/otp/otp.service';
+import { VerifyAccountDto } from 'src/verification/dto/verify-account.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -42,11 +43,12 @@ export class AuthController {
 
   /** LOGIN PAR PHONE + PASSWORD */
   @UseGuards(AuthGuard('local'))
+  @Roles(Role.VENDOR,Role.ADMIN)
   @Post('login')
   async signIn(@Request() req) {
     console.log(req.user, 'user')
     return this.authService.login(req.user);
-  }
+  } 
   /*@Post('login')
   async signIn(@Body() signInDto: { login: string; password: string }) {
     return this.authService.signIn(signInDto.login, signInDto.password);
@@ -57,6 +59,7 @@ export class AuthController {
   getProfil(@Request() req) {
     return req.user;
   }
+
 /*
 @Post('forgot-password')
 async forgotPassword(@Body() body: { email: string }) {
@@ -86,7 +89,6 @@ async forgotPassword(@Body() body: { email: string }) {
   @Get('profile')
   async getProfile(@Request() req) {
     const userId = req.user.sub;
-    console.log(userId, "userId")
     const user = await this.userService.findOneByUserId(userId);
     if (!user) {
       return { message: 'Utilisateur non trouvé' };
@@ -96,12 +98,9 @@ async forgotPassword(@Body() body: { email: string }) {
       id: user.id,
       first_name: user.first_name,
       last_name: user.last_name,
-      phone: user.phone,
       email: user.email,
       role: user.role,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-      deletedAt: user.deleted_at,
+     
     };
   }
 
@@ -148,16 +147,7 @@ async forgotPassword(@Body() body: { email: string }) {
     return this.authService.remove(id);
   }
 
-  /** DASHBOARDS protégés par rôle */
-  @Get('vendor-dashboard')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(Role.VENDOR)
-  getVendorDashboard(@Request() req) {
-    return {
-      message: `Hello Vendor ${req.user.first_name} !`,
-      user: req.user,
-    };
-  }
+ 
 
   @Get('admin-dashboard')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -176,5 +166,10 @@ async forgotPassword(@Body() body: { email: string }) {
       if (err) {return 'error'}
       return 'logged out'
     });
+  }
+
+    @Post('verify-account')
+  async verifyAccount(@Body() dto: VerifyAccountDto) {
+    return this.authService.verifyAccountCode(dto.email, dto.code);
   }
 }

@@ -16,12 +16,12 @@ import { UpdateCurrencyDto } from 'src/currency/dto/update-currency.dto';
 export class StoreController {
   constructor(private readonly storeService: StoreService) {}
 
-  
-  @Post('create-shop')
-  async create(@Body() dto: CreateStoreDto & { owner: string }) {
-    console.log(dto, 'dto')
-    return this.storeService.createStoreForExistingUser(dto, dto.owner);
-  }
+  @UseGuards(JwtAuthGuard)
+@Post('create-shop')
+async create(@Body() dto: CreateStoreDto, @Req() req) {
+  const ownerId = req.user.id;
+  return this.storeService.createStoreForExistingUser({ ...dto, owner: ownerId });
+}
 
 
  
@@ -31,7 +31,8 @@ export class StoreController {
     return this.storeService.updateStore(id, updateStoreDto);
   }
 
-
+ @UseGuards(AuthGuard('jwt'), RolesGuard)
+ @Roles(Role.ADMIN)
 
   @Get('my-stores')
   findAll(@Query() query: any) {
@@ -60,8 +61,8 @@ export class StoreController {
     return store;
   }
 
-//  @UseGuards(AuthGuard('jwt'), RolesGuard)
-//  @Roles(Role.ADMIN)
+ //@UseGuards(AuthGuard('jwt'), RolesGuard)
+ //@Roles(Role.ADMIN)
   @Patch(':id/activate')
   async activate(@Param('id') id: string) {
     return this.storeService.activateStore(id);
@@ -114,29 +115,5 @@ export class StoreController {
   
   //currency 
 
-  @Post('currency')
-  createCurrency(@Body() dto: CreateCurrencyDto) {
-    return this.storeService.createCurrency(dto);
-  }
 
-  @Get('currency')
-  findAllCurrencies() {
-    return this.storeService.findAllCurrencies();
-  }
-
-  @Get('currency/:id')
-  findOneCurrency(@Param('id') id: string) {
-    return this.storeService.findOneCurrency(id);
-  }
-
-  @Patch('currency/:id')
-  updateCurrency(@Param('id') id: string, @Body() dto: UpdateCurrencyDto) {
-    return this.storeService.updateCurrency(id, dto);
-  }
-
-  @Delete('currency/:id')
-  removeCurrency(@Param('id') id: string) {
-    return this.storeService.removeCurrency(id);
-  }
-  
 }

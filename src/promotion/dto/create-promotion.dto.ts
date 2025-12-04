@@ -1,69 +1,58 @@
-import {
-  IsString,
-  IsNotEmpty,
-  IsOptional,
-  IsEnum,
-  IsNumber,
-  Min,
-  IsBoolean,
-  IsDateString,
-  IsArray,
-} from 'class-validator';
-import { Types } from 'mongoose';
+import { IsEnum, IsMongoId, IsOptional, IsString, IsArray } from 'class-validator';
+import { PromotionMethod } from '../promotion-methode.enum';
+import { PromotionStatus } from '../enum-promotion';
+import { PromotionType } from '../entities/promotion-type.enum';
 
 export class CreatePromotionDto {
+  @IsEnum(PromotionType)
+  type: PromotionType;
+
+  @IsEnum(PromotionMethod)
+  method: PromotionMethod;
+
+  @IsEnum(PromotionStatus)
+  @IsOptional()
+  status?: PromotionStatus;
+
   @IsString()
-  @IsNotEmpty()
-  code: string;
-
-  @IsEnum(['percentage', 'fixed'])
-  discount_type: 'percentage' | 'fixed';
-
-  @IsNumber()
-  @Min(0)
-  value: number;
-
   @IsOptional()
-  @IsNumber()
-  @Min(0)
-  min_cart_total?: number;
+  Promotion_value?: string; // Montant ou pourcentage
 
+  @IsString()
   @IsOptional()
-  @IsBoolean()
-  is_active?: boolean;
+  code?: string;
 
+  @IsString()
   @IsOptional()
-  @IsDateString()
-  start_date?: Date;
+  taxe_include?: string;
 
-  @IsOptional()
-  @IsDateString()
-  end_date?: Date;
-
-  @IsOptional()
-  @IsBoolean()
-  applies_to_shipping?: boolean;
-
-  @IsOptional()
   @IsArray()
-  products?: string[];
-
   @IsOptional()
-  @IsArray()
-  collections?: string[];
+  @IsString({ each: true })
+  condition?: string[];
 
+  @IsString()
   @IsOptional()
-  @IsArray()
-  categories?: string[];
+  operateur?: string;
 
+  @IsString()
   @IsOptional()
-  @IsArray()
-  customerGroups?: string[];
+  value?: string;
 
+  @IsString()
   @IsOptional()
-  @IsArray()
-  regions?: string[];
+  discount?: string;
 
+  @IsString()
   @IsOptional()
-  metadata?: Record<string, any>;
+  Max_quantity?: string;
+
+  @IsString()
+  @IsOptional()
+  Min_quantity?: string;
+
+  @IsMongoId()
+  @IsOptional()
+  campaign?: string;
+
 }

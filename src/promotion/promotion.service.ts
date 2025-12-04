@@ -1,191 +1,169 @@
-import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 
-import { CreatePromotionDto } from './dto/create-promotion.dto';
+import { Promotion, PromotionDocument } from './entities/promotion.entity';
+import { PromotionAmount, PromotionAmountDocument } from './entities/promotion-amount.entity';
+import { PromotionBuyXGetY, PromotionBuyXGetYDocument } from './entities/promotion-buyxgety.entity';
+
 import { UpdatePromotionDto } from './dto/update-promotion.dto';
-
-import { ApplicationMethod } from './entities/application-method.entity';
-import { CampaignBudget } from './entities/campaign-budger.entity';
-import { Campaign } from './entities/campaign.entity';
-import { PromotionRule } from './entities/promotion-rule.entity';
-import { PromotionRuleValue } from './entities/promotion-rule-value.entity';
-import { Promotion } from './entities/promotion.entity';
-import { Product } from 'src/product/entities/product.entity';
-import { Cart } from 'src/cart/entities/cart.entity';
-import { User } from 'src/user/entities/user.entity';
+import { PromotionType } from './entities/promotion-type.enum';
+import { PromotionMethod } from './promotion-methode.enum';
 import { PromotionStatus } from './enum-promotion';
-import { Cron } from '@nestjs/schedule';
-import { Region } from 'src/region/entities/region.entity';
-import { MoneyAmount, MoneyAmountDocument } from 'src/pricing/entities/money-amount.entity';
+import { UserService } from 'src/user/user.service';
+import { JwtService } from '@nestjs/jwt';
+import { CreatePromotionConditionDto } from './dto/create-promotion-condition.dto';
+import { CreatePromotionDto } from './dto/create-promotion.dto';
+import { PromotionCondition, PromotionConditionDocument } from './entities/promotion-condition.entity';
 
 @Injectable()
 export class PromotionService {
-
   constructor(
-    @InjectModel(ApplicationMethod.name) private readonly applicationMethodModel: Model<ApplicationMethod>,
-    @InjectModel(CampaignBudget.name) private readonly campaignBudgetModel: Model<CampaignBudget>,
-    @InjectModel(Campaign.name) private readonly campaignModel: Model<Campaign>,
-    @InjectModel(PromotionRule.name) private readonly promotionRuleModel: Model<PromotionRule>,
-    @InjectModel(PromotionRuleValue.name) private readonly promotionRuleValueModel: Model<PromotionRuleValue>,
-    @InjectModel(Promotion.name) private readonly promotionModel: Model<Promotion>,
-    @InjectModel(Product.name) private readonly productModel: Model<Product>,
-    @InjectModel(MoneyAmount.name) private readonly moneyAmountModel: Model<MoneyAmountDocument>,
-
+    private readonly jwtService: JwtService,
+    @InjectModel(Promotion.name) private promotionModel: Model<PromotionDocument>,
+    @InjectModel(PromotionAmount.name) private promotionAmountModel: Model<PromotionAmountDocument>,
+    @InjectModel(PromotionBuyXGetY.name) private promotionBuyXGetYModel: Model<PromotionBuyXGetYDocument>,
+    @InjectModel(PromotionCondition.name) private promotionConditionModel: Model<PromotionConditionDocument>,
   ) {}
 
+  // ---------------- CREATE ---------------- //
 
-
-  async findAllByUser(storeId: string) {
-  return this.promotionModel.find({ store: storeId }); // ou selon ta logique
-}
-
-
-  async findAllByVendor(vendorId: string) {
-  return this.promotionModel.find({ vendorId }).exec();
-  }
-
-
-
-    /**IMPORTANT
-     * EST CE QUE LA PROMTION EST ELIGIBLE ? , changement automatiser du statu stout les 1h
-     */
-
-
-/**
- * 
- * @param promo 
- * @param cart 
- * @returns 
- */
-
-
-
-private determineStatus(promotion: Promotion): PromotionStatus {
-  const now = new Date();
-
-  if (promotion.start_date && promotion.start_date > now) {
-    return PromotionStatus.DRAFT;
-  }
-
-  if (promotion.end_date && promotion.end_date < now) {
-    return PromotionStatus.EXPIRED;
-  }
-
-  if (!promotion.is_active) {
-    return PromotionStatus.DELETED;
-  }
-
-  return PromotionStatus.ACTIVE;
-}
-
-async findAll(storeId: string): Promise<Promotion[]> {
-  const promos = await this.promotionModel.find({ storeId }).exec();
-  return promos.map(promo => ({
-    ...promo.toObject(),
-    status: this.determineStatus(promo),
-  }));
-}
-
-
-
-
- @Cron('*/60 * * * *') // toutes les 60 minutes
- async updateAllStatuses() {
-  const promotions = await this.promotionModel.find();
-
-  for (const promo of promotions) {
-    const newStatus = this.determineStatus(promo);
-    if (promo.status !== newStatus) {
-      promo.status = newStatus;
-      await promo.save();
-    }
-  }
-
- }
-
-  async calculatePromotionDiscount(promo: Promotion, cart: Cart): Promise<number> {
-  let totalDiscount = 0;
-
-  for (const item of cart.items) {
-    const variantId = typeof item.product_variant === 'object' && '_id' in item.product_variant
-      ? item.product_variant._id
-      : item.product_variant;
-
-    const moneyAmount = await this.moneyAmountModel.findOne({
-      variant: variantId,
-      currency_code: cart.currency_code,
-      deleted_at: null,
-    });
-
-    if (!moneyAmount) continue;
-
-    const itemTotal = moneyAmount.amount * item.quantity;
-
-    // Extraire productId depuis product_variant
-    let productId: string | null = null;
-
-    if (typeof item.product_variant === 'object' && 'product' in item.product_variant) {
-      productId = item.product_variant.product?.toString() ?? null;
-    }
-
-    const isTargeted =
-      !promo.products?.length ||
-      (productId && promo.products.map(p => p.toString()).includes(productId));
-
-    if (isTargeted) {
-      if (promo.discount_type === 'percentage') {
-        totalDiscount += (promo.value / 100) * itemTotal;
-      } else if (promo.discount_type === 'fixed') {
-        totalDiscount += promo.value;
+  async createPromotion(
+    dto: CreatePromotionDto,
+    storeId: string,
+  ): Promise<Promotion> {
+    try {
+      //  Vérifie si un code promotion existe déjà
+      if (dto.code) {
+        const existingPromo = await this.promotionModel.findOne({ code: dto.code });
+        if (existingPromo) {
+          throw new BadRequestException(
+            `Le code promotion "${dto.code}" existe déjà. Veuillez en choisir un autre.`,
+          );
+        }
       }
+
+      //  Création du document
+      const promotion = new this.promotionModel({
+        type: dto.type,
+        method: dto.method,
+        code: dto.code,
+        Promotion_value: dto.Promotion_value,
+        taxe_include: dto.taxe_include,
+        condition: dto.condition,
+        operateur: dto.operateur,
+        value: dto.value,
+        discount: dto.discount,
+        Max_quantity: dto.Max_quantity,
+        Min_quantity: dto.Min_quantity,
+        campaign: dto.campaign ? new Types.ObjectId(dto.campaign) : undefined,
+        store: new Types.ObjectId(storeId),
+        status: dto.status || PromotionStatus.DRAFT,
+      });
+
+      return await promotion.save();
+    } catch (error) {
+      //  Gestion d’erreur MongoDB (clé dupliquée)
+      if (error.code === 11000 && error.keyPattern?.code) {
+        throw new BadRequestException(
+          `Le code promotion "${error.keyValue.code}" existe déjà. Veuillez en choisir un autre.`,
+        );
+      }
+
+      throw new BadRequestException(
+        `Erreur lors de la création de la promotion : ${error.message}`,
+      );
     }
   }
 
-  return totalDiscount;
+// promotion.service.ts
+async findById(id: string): Promise<Promotion> {
+  try {
+    const promotion = await this.promotionModel
+      .findById(id)
+      .populate('products', 'title imageUrl price') // nom, image, prix
+      .exec();
+
+    if (!promotion) {
+      throw new BadRequestException('Promotion introuvable.');
+    }
+
+    return promotion;
+  } catch (error) {
+    throw new BadRequestException(
+      `Erreur lors de la récupération de la promotion : ${error.message}`,
+    );
+  }
+}
+
+
+async updateStatus(id: string, status: string): Promise<Promotion> {
+  const promo = await this.promotionModel.findById(id);
+  if (!promo) throw new BadRequestException('Promotion introuvable.');
+
+  promo.status = status as PromotionStatus; // 
+  return promo.save();
 }
 
 
 
-  async findOne(id: string): Promise<Promotion> {
-    const promo = await this.promotionModel.findById(id);
-    if (!promo || promo.deleted) throw new NotFoundException('Promotion introuvable');
-    return promo;
+  // ---------------- READ ---------------- //
+
+  async findAllByStore(storeId: string): Promise<Promotion[]> {
+    return this.promotionModel
+      .find({ store: new Types.ObjectId(storeId) })
+      .populate('condition')
+      .exec();
   }
 
-  async create(dto: CreatePromotionDto): Promise<Promotion> {
-    return this.promotionModel.create(dto);
+  async findOneById(id: string, storeId: string): Promise<Promotion> {
+    const promotion = await this.promotionModel
+      .findOne({ _id: id, store: new Types.ObjectId(storeId) })
+      .populate('condition')
+      .exec();
+
+    if (!promotion) {
+      throw new NotFoundException(`Promotion ${id} introuvable pour cette boutique`);
+    }
+    return promotion;
   }
 
-  async update(id: string, dto: UpdatePromotionDto): Promise<Promotion> {
-    const promo = await this.promotionModel.findByIdAndUpdate(id, dto, { new: true });
-    if (!promo) throw new NotFoundException('Promotion introuvable');
-    return promo;
+  // ---------------- UPDATE ---------------- //
+
+  async update(id: string, dto: UpdatePromotionDto, storeId: string): Promise<Promotion> {
+    const promotion = await this.promotionModel.findOneAndUpdate(
+      { _id: id, store: new Types.ObjectId(storeId) },
+      { $set: dto },
+      { new: true },
+    );
+
+    if (!promotion) {
+      throw new NotFoundException(`Promotion ${id} introuvable ou non autorisée`);
+    }
+    return promotion;
   }
 
-  async remove(id: string): Promise<Promotion> {
-    const promo = await this.promotionModel.findById(id);
-    if (!promo) throw new NotFoundException('Promotion introuvable');
+  // ---------------- DELETE ---------------- //
 
-    promo.deleted = true;
-    return promo.save();
+  async remove(id: string, storeId: string): Promise<{ message: string }> {
+    const result = await this.promotionModel.deleteOne({ _id: id, store: new Types.ObjectId(storeId) });
+
+    if (result.deletedCount === 0) {
+      throw new NotFoundException(`Promotion ${id} introuvable ou non autorisée`);
+    }
+
+    return { message: 'Promotion supprimée avec succès' };
+  }
+ 
+  //---------------PROMOTION_CONDITION---------//
+
+    async createPromotionCondition(dto: CreatePromotionConditionDto) {
+    const condition = new this.promotionConditionModel(dto);
+    return condition.save();
   }
 
-  async softDelete(id: string) {
-  const promotion = await this.promotionModel.findById(id);
-  if (!promotion) {
-    throw new NotFoundException('Promotion non trouvée');
-  }
-
-  promotion.status =  PromotionStatus.DELETED;
-  await promotion.save();
-
-  return { message: 'Promotion supprimée (soft delete)' };
+  async getAllPromotionConditions() {
+  return this.promotionConditionModel.find().lean();
 }
-
-
-
-
-  
 
 }
