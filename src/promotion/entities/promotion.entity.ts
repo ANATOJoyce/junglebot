@@ -12,7 +12,7 @@ export class Promotion extends Document {
   @Prop({ required: true, enum: PromotionMethod, default: PromotionMethod.AUTOMATIC })
   method: PromotionMethod;
 
-   @Prop({ type: String, enum: PromotionStatus, default: PromotionStatus.DRAFT })
+  @Prop({ type: String, enum: PromotionStatus, default: PromotionStatus.DRAFT })
   status: PromotionStatus;
 
 

@@ -9,7 +9,7 @@ export class CartController {
   constructor(private readonly cartService: CartService) {}
 
   // Créer un nouveau panier
-  @Post()
+  @Post('add')
   async create(@Body() createCartDto: CreateCartDto) {
     return this.cartService.create(createCartDto);
   }

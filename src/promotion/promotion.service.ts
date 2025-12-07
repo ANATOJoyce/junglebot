@@ -81,7 +81,7 @@ async findById(id: string): Promise<Promotion> {
   try {
     const promotion = await this.promotionModel
       .findById(id)
-      .populate('products', 'title imageUrl price') // nom, image, prix
+      .populate('product', 'title imageUrl price') // nom, image, prix
       .exec();
 
     if (!promotion) {

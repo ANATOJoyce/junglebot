@@ -20,7 +20,6 @@ export class OrdersController {
 
 
   @UseGuards(JwtAuthGuard, StoreGuard)
-  @Roles(Role.ADMIN, Role.VENDOR)
   @Post(':storeId')
   async createOrder(
     @Param('storeId') storeId: string,
