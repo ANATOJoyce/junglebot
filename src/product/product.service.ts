@@ -7,10 +7,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { isValidObjectId, Model, Types } from 'mongoose';
 import { CreateProductCategoryDto } from './dto/category/create-product-category.dto';
 import { UpdateProductCategoryDto } from './dto/category/update-product-category.dto';
-import { ProductCollection } from './entities/product-collection.entity';
-import { CreateProductCollectionDto } from './dto/collection/create-product-collection.dto';
-import { UpdateProductCollectionDto } from './dto/collection/update-product-collection.dto';
-import { ProductOption } from './entities/product-option.entity';
+
 import { CreateProductOptionDto } from './dto/option/create-product-option.dto';
 import { UpdateProductOptionDto } from './dto/option/update-product-option.dto';
 import { ProductOptionValue } from './entities/product-option-value.entity';
@@ -35,15 +32,18 @@ import { StoreService } from 'src/store/store.service';
 import { v2 as cloudinary } from 'cloudinary';
 import { CloudinaryService } from './cloudinary.service';
 import Fuse from 'fuse.js';
+import { Promotion, PromotionDocument } from 'src/promotion/entities/promotion.entity';
+import { CreateCollectionDto } from './dto/collection/create-product-collection.dto';
+import { UpdateCollectionDto } from './dto/collection/update-product-collection.dto';
+import { Collection } from './entities/product-collection.entity';
 
 @Injectable()
 export class ProductService {
 
   constructor(
     @InjectModel(Product.name) private readonly productModel: Model<Product>,
-    @InjectModel(ProductCategory.name) private readonly categoryModel: Model<ProductCategory>,
-    @InjectModel(ProductCollection.name) private readonly collectionModel: Model<ProductCollection>,
-    @InjectModel(ProductOption.name) private readonly optionModel: Model<ProductOption>,
+    @InjectModel(Collection.name) private collectionModel: Model<Collection> ,
+    @InjectModel(ProductCategory.name) private categoryModel: Model<ProductCategory>,
     @InjectModel(ProductOptionValue.name) private readonly optionValueModel: Model<ProductOptionValue>,
     @InjectModel(Variant.name) private readonly variantModel: Model<Variant>,
     @InjectModel(ProductTag.name) private readonly tagModel: Model<ProductTag>,
@@ -82,6 +82,45 @@ export class ProductService {
   }
 */
 
+ async createCollection(dto: CreateCollectionDto) {
+    // Vérifier si une collection avec ce nom existe déjà
+    const existing = await this.collectionModel.findOne({ name: dto.name }).lean();
+    if (existing) {
+      throw new BadRequestException(`La collection "${dto.name}" existe déjà.`);
+    }
+
+    const collection = new this.collectionModel(dto);
+    const saved = await collection.save();
+
+    const total = await this.collectionModel.countDocuments();
+
+    return {
+      data: saved.toObject(),
+      meta: { total },
+    };
+  }
+
+
+   async findAllCollections(page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await Promise.all([
+      this.collectionModel.find().skip(skip).limit(limit).lean(),
+      this.collectionModel.countDocuments(),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        pageSize: limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+
 
 
 async createProductInStore(dto: CreateProductDto, storeId: string) {
@@ -97,19 +136,22 @@ async createProductInStore(dto: CreateProductDto, storeId: string) {
     price: dto.price,
     status: ProductStatus.DRAFT,
     totalStock: dto.totalStock,
-    imageUrl: dto.imageUrl, 
+    imageUrl: dto.imageUrl,
     storeId: store._id,
+    category: dto.category,
+    collection: dto.collection,
+    promotions: dto.promotions || [], // 👈 tableau d’ObjectId
+    isPromotion: (dto.promotions?.length ?? 0) > 0, // 👈 safe check  
     variants: [],
   });
 
   try {
     const savedProduct = await product.save();
-    return savedProduct;
+    return savedProduct.populate('promotions'); // 👈 enrichir directement
   } catch (error) {
     console.error("Erreur lors de la création :", error);
     throw new InternalServerErrorException("Erreur lors de la création du produit.");
   }
-
 }
 
 
@@ -119,7 +161,7 @@ async createProductInStore(dto: CreateProductDto, storeId: string) {
     return updated;
   }
 
-    async getProductById(productId: string) {
+  async getProductById(productId: string) {
     if (!Types.ObjectId.isValid(productId)) throw new NotFoundException('Produit introuvable');
     const product = await this.productModel
       .findById(productId)
@@ -128,6 +170,10 @@ async createProductInStore(dto: CreateProductDto, storeId: string) {
     if (!product) throw new NotFoundException('Produit introuvable');
     return product;
   }
+
+
+
+
 
   async updateStatus(productId: string, status: string) {
     const product = await this.productModel.findByIdAndUpdate(
@@ -140,7 +186,7 @@ async createProductInStore(dto: CreateProductDto, storeId: string) {
   }
 
 
-// creation de variante de produit
+ // creation de variante de produit
 
  async addVariantsToProduct(
     productId: string,
@@ -248,37 +294,52 @@ async createVariant(productId: string, variantData: Partial<Variant>) {
 }
 
 
-  async getProductWithVariants(productId: string) {
-    if (!Types.ObjectId.isValid(productId)) {
-      throw new NotFoundException(`Invalid productId: ${productId}`);
-    }
-
-    const product = await this.productModel
-      .findById(productId)
-      .populate('variants') // transforme ObjectId[] en Variant[]
-      .exec();
-
-    if (!product) {
-      throw new NotFoundException('Produit non trouvé');
-    }
-
-    // Cast type-safe pour TypeScript
-    const variants = product.variants as unknown as Variant[];
-
-    // Calcul du stock total
-    const variantsStock = variants?.reduce(
-      (sum, variant) => sum + (variant.stock ?? 0),
-      0
-    ) ?? 0;
-
-    const totalStock = (product.totalStock ?? 0) + variantsStock;
-
-    return {
-      ...product.toObject(),
-      totalStock,
-      variants, // variantes peuplées et typées
-    };
+async getProductWithVariants(productId: string) {
+  if (!Types.ObjectId.isValid(productId)) {
+    throw new NotFoundException(`Invalid productId: ${productId}`);
   }
+
+  const product = await this.productModel
+    .findById(productId)
+    .populate('variants')    // transforme ObjectId[] en Variant[]
+    .populate('promotions')  // 👈 ajoute le populate des promotions
+    .exec();
+
+  if (!product) {
+    throw new NotFoundException('Produit non trouvé');
+  }
+
+  // Cast type-safe pour TypeScript
+  const variants = product.variants as unknown as Variant[];
+  const promotions = product.promotions as unknown as Promotion[];
+
+  // Calcul du stock total
+  const variantsStock = variants?.reduce(
+    (sum, variant) => sum + (variant.stock ?? 0),
+    0
+  ) ?? 0;
+
+  const totalStock = (product.totalStock ?? 0) + variantsStock;
+
+  // ✅ Calcul du prix réel après promotion
+  let finalPrice = product.price;
+  if (promotions && promotions.length > 0) {
+    // Exemple : on prend la première promotion appliquée
+    const promo = promotions[0];
+    const promoValue = promo.value ?? 0; // si undefined → 0
+    finalPrice = Math.max(0, product.price - promoValue); 
+    // 👆 évite d’avoir un prix négatif
+  }
+
+  return {
+    ...product.toObject(),
+    totalStock,
+    variants,       // variantes peuplées et typées
+    promotions,     // promotions peuplées et typées
+    finalPrice,     // 👈 prix calculé après promotion
+  };
+}
+
 
  async getProductsByStore(storeId: string, userId: string) {
     // Vérifie si la boutique appartient à l'utilisateur
@@ -325,10 +386,6 @@ async getMyProduct(storeId: String){
 
  
 
-  async create(dto: CreateProductDto & { store: string }) {
-    const product = new this.productModel(dto);
-    return product.save();
-  }
  
 
  //l'adimin le regete LE PRODUIT
@@ -416,25 +473,10 @@ async getMyProduct(storeId: String){
   return this.productModel.find().populate('category', 'title').exec();
  }
 
- async findAll() {
-  return this.productModel.find(); // ← sans populate
-}
 
 
 
 
-async findOne(id: string) {
-  if (!isValidObjectId(id)) {
-    throw new BadRequestException(`ID invalide: ${id}`);
-  }
-
-  const product = await this.productModel.findById(id).populate(['storeId', 'imageUrl', 'variants']);
-  if (!product) {
-    throw new NotFoundException(`Produit avec l'ID ${id} introuvable`);
-  }
-
-  return product;
-}
 
 
 
@@ -517,6 +559,20 @@ async getProductsWithFilters(
 }
 
 
+
+async findOneCategory(categoryId: string) {
+  const category = await this.categoryModel
+    .findById(categoryId)
+    .populate('products', 'name price')
+    .lean();
+
+  if (!category) {
+    throw new Error(`Category with id ${categoryId} not found`);
+  }
+
+  return category;
+}
+
 //produit filter par prix et par variants
 
   async getProductsByVariantAndPrice(
@@ -555,7 +611,7 @@ async getProductsWithFilters(
       }
 
       const products = await this.productModel
-        .find()
+        .find({ status: ProductStatus.PUBLISHED })
         .select('title description imageUrl price variants')
         .lean()
         .exec();
@@ -569,11 +625,6 @@ async getProductsWithFilters(
 
       const results = fuse.search(query);
       return results.map(r => r.item);
-  }
-
-
-  async remove(id: string): Promise<void> {
-    await this.productModel.findByIdAndDelete(id);
   }
 
 
@@ -619,11 +670,7 @@ async getProductsWithFilters(
 
 
 
-   async createCategory(dto: { name: string; description?: string; parent?: string }) {
-    const category = new this.categoryModel(dto);
-    return category.save();
-  }
-
+  
   async getAllCategories() {
     return this.categoryModel.find().exec();
   }
@@ -678,91 +725,7 @@ async getProductsWithFilters(
 
   // product.service.ts (bloc complet)
 
-  async createProductCollection(dto: CreateProductCollectionDto) {
-    return this.collectionModel.create(dto);
-  }
-
-  async updateProductCollection(id: string, dto: UpdateProductCollectionDto) {
-    return this.collectionModel.findByIdAndUpdate(id, dto, { new: true });
-  }
-
-  async upsertProductCollection(handle: string, dto: CreateProductCollectionDto) {
-    return this.collectionModel.findOneAndUpdate(
-      { handle },
-      dto,
-      { upsert: true, new: true }
-    );
-  }
-
-  async softDeleteProductCollection(id: string) {
-    return this.collectionModel.findByIdAndUpdate(id, { deleted_at: new Date() });
-  }
-
-  async deleteProductCollection(id: string) {
-    return this.collectionModel.findByIdAndDelete(id);
-  }
-
-  async restoreProductCollection(id: string) {
-    return this.collectionModel.findByIdAndUpdate(id, { deleted_at: null });
-  }
-
-  async listProductCollections() {
-    return this.collectionModel.find({ deleted_at: null });
-  }
-
-  async listAndCountProductCollections() {
-    const docs = await this.collectionModel.find({ deleted_at: null });
-    const count = await this.collectionModel.countDocuments({ deleted_at: null });
-    return { docs, count };
-  }
-
-  async retrieveProductCollection(id: string) {
-    return this.collectionModel.findById(id);
-  }
-
-  //  ProductOption
-
-  async createProductOption(dto: CreateProductOptionDto) {
-    return this.optionModel.create(dto);
-  }
-
-  async updateProductOption(id: string, dto: UpdateProductOptionDto) {
-    return this.optionModel.findByIdAndUpdate(id, dto, { new: true });
-  }
-
-  async upsertProductOption(title: string, dto: CreateProductOptionDto) {
-    return this.optionModel.findOneAndUpdate(
-      { title },
-      dto,
-      { upsert: true, new: true }
-    );
-  }
-
-  async softDeleteProductOption(id: string) {
-    return this.optionModel.findByIdAndUpdate(id, { deleted_at: new Date() });
-  }
-
-  async deleteProductOption(id: string) {
-    return this.optionModel.findByIdAndDelete(id);
-  }
-
-  async restoreProductOption(id: string) {
-    return this.optionModel.findByIdAndUpdate(id, { deleted_at: null });
-  }
-
-  async listProductOptions() {
-    return this.optionModel.find({ deleted_at: null });
-  }
-
-  async listAndCountProductOptions() {
-    const docs = await this.optionModel.find({ deleted_at: null });
-    const count = await this.optionModel.countDocuments({ deleted_at: null });
-    return { docs, count };
-  }
-
-  async retrieveProductOption(id: string) {
-    return this.optionModel.findById(id);
-  }
+ 
 
   //option-value // product.service.ts (bloc complet ProductOptionValue)
 
@@ -1004,46 +967,26 @@ async getProductsWithFilters(
     });
     return category.save();
   }
- 
 
-  async createCollectionInStore(dto: CreateProductCollectionDto, storeId: string) {
-  const existing = await this.collectionModel.findOne({ handle: dto.handle, store: storeId });
-  if (existing) {
-    throw new BadRequestException('Une collection avec ce handle existe déjà dans cette boutique.');
+  async findAllCategory(page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+    const [data, total] = await Promise.all([
+      this.categoryModel
+        .find()
+        .populate('name')
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      this.categoryModel.countDocuments(),
+    ]);
+    return {
+      data,
+      meta: { total, page, pageSize: limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
-  const collection = new this.collectionModel({
-    ...dto,
-    store: storeId,
-    visibility: dto.visibility || Visibility.PRIVATE,
-  });
 
-  return collection.save();
-  }
 
-async findCollectionsByStore(storeId: string, page = 1, limit = 10) {
-  const skip = (page - 1) * limit;
-
-  const [collections, total] = await Promise.all([
-    this.collectionModel
-      .find({ store: storeId })
-      .populate('products', 'name price') //  ici tu récupères juste les champs utiles
-      .skip(skip)
-      .limit(limit)
-      .lean(),
-    this.collectionModel.countDocuments({ store: storeId }),
-  ]);
-
-  return {
-    data: collections,
-    meta: {
-      total,
-      page,
-      pageSize: limit,
-      totalPages: Math.ceil(total / limit),
-    },
-  };
-}
 
 async getPublishedProducts() {
   return this.productModel
@@ -1054,6 +997,89 @@ async getPublishedProducts() {
     .exec();
 }
 
+  async create(dto: CreateCollectionDto) {
+    return this.collectionModel.create(dto);
+  }
+
+ async findAllCategories(page = 1, limit = 10) {
+  const skip = (page - 1) * limit;
+
+  const [data, total] = await Promise.all([
+    this.categoryModel
+      .find()
+      .skip(skip)
+      .limit(limit)
+      .lean(), // renvoie des objets JS simples
+    this.categoryModel.countDocuments(),
+  ]);
+
+  return {
+    data,
+    meta: {
+      total,
+      page,
+      pageSize: limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}
+
+  async findOne(id: string) {
+    return this.collectionModel.findById(id).populate('category', 'name');
+  }
+
+
+
+
+  async remove(id: string) {
+    return this.collectionModel.findByIdAndDelete(id);
+  }
+
+
+async createCategory(dto: CreateProductCategoryDto) {
+  // Vérifier d'abord si la catégorie existe
+  const existing = await this.categoryModel.findOne({ name: dto.name }).lean();
+  if (existing) {
+    throw new BadRequestException(
+      `La catégorie "${dto.name}" existe déjà.`,
+    );
+  }
+
+  // Créer et sauvegarder
+  const category = new this.categoryModel(dto);
+  const saved = await category.save();
+
+  // Compter le total après insertion
+  const total = await this.categoryModel.countDocuments();
+
+  return {
+    data: saved.toObject(),
+    meta: { total },
+  };
+}
+
+async update(id: string, dto: UpdateProductCategoryDto): Promise<ProductCategory> {
+  const category = await this.categoryModel.findByIdAndUpdate(id, dto, { new: true }).exec();
+  if (!category) throw new NotFoundException(`Category ${id} not found`);
+  return category;
+}
+ 
+
+
+  // READ ONE
+  async findCategoryById(id: string): Promise<ProductCategory> {
+    const category = await this.categoryModel.findById(id).exec();
+    if (!category) throw new NotFoundException(`Category ${id} not found`);
+    return category;
+  }
+
+
+
+ async updateCategory(id: string, dto: UpdateProductCategoryDto): Promise<ProductCategory> {
+    const category = await this.categoryModel.findByIdAndUpdate(id, dto, { new: true }).exec();
+    if (!category) throw new NotFoundException(`Category ${id} not found`);
+    return category;
+  }
 
 
 

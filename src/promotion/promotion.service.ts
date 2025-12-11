@@ -59,6 +59,8 @@ export class PromotionService {
         campaign: dto.campaign ? new Types.ObjectId(dto.campaign) : undefined,
         store: new Types.ObjectId(storeId),
         status: dto.status || PromotionStatus.DRAFT,
+        startDate: dto.startDate,
+        endDate:dto.endDate
       });
 
       return await promotion.save();
@@ -81,7 +83,6 @@ async findById(id: string): Promise<Promotion> {
   try {
     const promotion = await this.promotionModel
       .findById(id)
-      .populate('product', 'title imageUrl price') // nom, image, prix
       .exec();
 
     if (!promotion) {
@@ -97,13 +98,40 @@ async findById(id: string): Promise<Promotion> {
 }
 
 
-async updateStatus(id: string, status: string): Promise<Promotion> {
+
+async getAmountOffProductPromotions(storeId: string) {
+  return this.promotionModel.find({
+    store: new Types.ObjectId(storeId), // 👈 conversion obligatoire
+    type: PromotionType.AMOUNT_OFF_PRODUCT,
+  });
+}
+
+async updateStatus(
+  id: string,
+  status: PromotionStatus,
+  startDate?: Date,
+  endDate?: Date,
+): Promise<Promotion> {
   const promo = await this.promotionModel.findById(id);
   if (!promo) throw new BadRequestException('Promotion introuvable.');
 
-  promo.status = status as PromotionStatus; // 
+  const today = new Date();
+
+  // Mise à jour des dates si fournies
+  if (startDate) promo.startDate = startDate;
+  if (endDate) promo.endDate = endDate;
+
+  // Vérifie la date de fin pour forcer le statut
+  if (promo.endDate && promo.endDate < today) {
+    promo.status = PromotionStatus.EXPIRED;
+  } else {
+    promo.status = status;
+  }
+
   return promo.save();
 }
+
+
 
 
 

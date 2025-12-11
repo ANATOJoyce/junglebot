@@ -10,7 +10,7 @@ export enum Visibility {
 
 @Schema({ timestamps: true })
 export class ProductCategory extends Document {
-  @Prop()
+  @Prop({unique: true})
   name: string;
 
   @Prop({ index: true })
@@ -19,14 +19,7 @@ export class ProductCategory extends Document {
   @Prop({ type: String, enum: Visibility, default: Visibility.PRIVATE })
   visibility: Visibility;
 
-  @Prop({ index: true })
-  handle: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'Store', required: true })
-  store: Store;
-
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Product' }] })
-  products: Product[];
 }
 
 export const ProductCategorySchema = SchemaFactory.createForClass(ProductCategory);

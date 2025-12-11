@@ -11,7 +11,6 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateVariantDto } from './dto/variant/create-product-variant.dto';
 import { CreateProductCategoryDto } from './dto/category/create-product-category.dto';
-import { CreateProductCollectionDto } from './dto/collection/create-product-collection.dto';
 import { CreateProductTagDto } from './dto/tage/create-product-tag.dto';
 import { CreateProductOptionDto } from './dto/option/create-product-option.dto';
 import { CreateProductOptionValueDto } from './dto/option-value/create-product-option-value.dto';
@@ -24,6 +23,8 @@ import { CurrentUser } from 'src/auth/current-user.decorator';
 import { StoreGuard } from 'src/auth/StoreAuthGuard';
 import { User } from 'src/user/entities/user.entity';
 import { ProductStatus } from './product-enum';
+import { UpdateProductCategoryDto } from './dto/category/update-product-category.dto';
+import { CreateCollectionDto } from './dto/collection/create-product-collection.dto';
 
 
 
@@ -38,16 +39,46 @@ export class ProductController {
   // SECTION 1: CORE PRODUCT OPERATIONS
   // ==============================================
   
-/*
+ /*
   @Get(':id')
   @Roles(Role.ADMIN, Role.VENDOR)
   findOne(@Param('id') id: string) {
     return this.productService.retrieveProduct(id);
   }*/
+@Post('collections')
+  async createCollection(@Body() dto: CreateCollectionDto) {
+    return this.productService.createCollection(dto);
+  }
+
+  @Get('collections')
+  async findAllCollections(
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+  ) {
+    return this.productService.findAllCollections(Number(page), Number(limit));
+  }
+
+
+
+    
+  @Post('categories')
+  async createCategory(@Body() dto: CreateProductCategoryDto) {
+    return this.productService.createCategory(dto);
+  }
+
 
   @Get('search')
   async search(@Query('title') title: string) {
     return this.productService.searchProductsByTitleFuzzy(title);
+  }
+
+  
+ @Get('categories')
+  async findAllCategories(
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+  ) {
+    return this.productService.findAllCategory(Number(page), Number(limit));
   }
 
 /*
@@ -76,12 +107,7 @@ async findOne(@Param('id') id: string) {
   }
 
 
-  @Delete(':id')
-  @Roles(Role.ADMIN, Role.VENDOR)
-  remove(@Param('id') id: string) {
-    return this.productService.deleteProduct(id);
-  }
-
+ 
 
 
 
@@ -94,6 +120,7 @@ async findOne(@Param('id') id: string) {
   ) {
     return this.productService.createProductInStore(dto, storeId);
   }
+
 
 
 
@@ -128,61 +155,6 @@ async findOne(@Param('id') id: string) {
 
 }
 
-/*
-  @UseGuards(JwtAuthGuard, StoreGuard)
-  @Roles(Role.ADMIN, Role.VENDOR)
- 
-  @Post('create')
-  @UseInterceptors(FileInterceptor('image'))  // 'image' est le nom du champ dans le formulaire
-  async createProduct2(
-    @Body() createProductDto: any,
-    @UploadedFile() file: Express.Multer.File,  // Le fichier téléchargé
-  ) {
-    // Créer un produit avec l'image téléchargée
-    return this.productService.createProduct(createProductDto, file);
-  }
-
-
-  // product.controller.ts
-  @UseGuards(AuthGuard('jwt'), StoreGuard)
-
-    @Post(':storeId')
-    async createProduct(
-      @Param('storeId') storeId: string,
-      @Body() createProductDto: CreateProductDto,
-    ) {
-      return this.productService.create({
-        ...createProductDto,
-        store: storeId, // On injecte le storeId ici
-      });
-    }
-
-
-@UseGuards(AuthGuard('jwt'), StoreGuard)
-@Get(':id') 
-async getMyProducts(
-  @Req() req: Request & { store: any },
-  @Query() query: { page?: string; limit?: string; sort?: string }
-) {
-  const store = req.store;
-
-  if (!store) {
-    throw new NotFoundException("Aucune boutique trouvée pour cet utilisateur.");
-  }
-
-  const page = query.page ? parseInt(query.page, 10) : 1;
-  const limit = query.limit ? parseInt(query.limit, 10) : 10;
-  const sort = query.sort ?? '-createdAt';
-
-  return this.productService.getProductsWithFilters(
-    { storeId: store.id },
-    page,
-    limit,
-    sort
-  );
-}
-*/
-
 
 
   @Get('filter')
@@ -206,7 +178,7 @@ async getMyProducts(
 
   @Get()
   async getAllProduct(){
-    return this.productService.findAll()
+    return this.productService.findAllCategories()
   }
  
  
@@ -245,26 +217,6 @@ async getMyProducts(
   // ==============================================
 
 
-  @Get('category')
-  listCategories() {
-    return this.productService.listProductCategories();
-  }
-
-  // ==============================================
-  // SECTION 6: PRODUCT COLLECTIONS
-  // ==============================================
-
-
-
-  @Get('collections')
-  listCollections() {
-    return this.productService.listProductCollections();
-  }
-
-  // ==============================================
-  // SECTION 7: PRODUCT TAGS
-  // ==============================================
-
   @Post('tags')
   @Roles(Role.ADMIN, Role.VENDOR)
   createTag(@Body() dto: CreateProductTagDto) {
@@ -278,12 +230,7 @@ async getMyProducts(
   }
 
 
-  @Post('options')
-  @Roles(Role.ADMIN, Role.VENDOR)
-  createOption(@Body() dto: CreateProductOptionDto) {
-    return this.productService.createProductOption(dto);
-  }
-
+ 
   @Post('option-values')
   @Roles(Role.ADMIN, Role.VENDOR)
   createOptionValue(@Body() dto: CreateProductOptionValueDto) {
@@ -347,15 +294,7 @@ async getMyProducts(
     return this.productService.restoreProduct(id);
   }
 
-  @Get('categorie')
-  async getAllWithCategory() {
-    return this.productService.findAllByCtegorie();
-  }
 
-  @Post('categorie')
-  async postAllWithCategory() {
-    return this.productService.findAllByCtegorie();
-  }
 
 @Get('category/store/:storeId')
 async getCategoriesByStore(
@@ -366,35 +305,7 @@ async getCategoriesByStore(
   return this.productService.findCategoriesByStore(storeId, +page, +limit);
 }
 
-@UseGuards(JwtAuthGuard, StoreGuard)
-@Roles(Role.ADMIN, Role.VENDOR)
-@Post(':storeId/category')
-async createCategory(
-  @Param('storeId') storeId: string,
-  @Body() dto: CreateProductCategoryDto,
-) {
-  return this.productService.createCategoryInStore(dto, storeId);
-}
 
-
-// Récupérer toutes les collections d’une boutique
-@Get('collection/store/:storeId')
-async getCollectionsByStore(
-  @Param('storeId') storeId: string,
-  @Query('page') page = '1',
-  @Query('limit') limit = '10',
-) {
-  return this.productService.findCollectionsByStore(storeId, +page, +limit);
-}
-
-// Créer une collection pour une boutique
-@Post('collection/store/:storeId')
-async createCollection(
-  @Param('storeId') storeId: string,
-  @Body() dto: CreateProductCollectionDto,
-) {
-  return this.productService.createCollectionInStore(dto, storeId);
-}
 
 
   @Post(':id/variant')
@@ -402,6 +313,50 @@ async createCollection(
     const { size, color, price, stock } = body;
     return this.productService.createVariant(id, { size, color, price, stock });
   }
+
+
+  
+  @UseGuards(JwtAuthGuard, StoreGuard)
+  @Roles(Role.ADMIN)
+  @Get('categories/:id')
+  async findCategoryById(@Param('id') id: string) {
+    return this.productService.findCategoryById(id);
+  }
+
+ @UseGuards(JwtAuthGuard, StoreGuard)
+  @Roles(Role.ADMIN)
+  @Put('categories/:id')
+  async updateCategory(@Param('id') id: string, @Body() dto: UpdateProductCategoryDto) {
+    return this.productService.updateCategory(id, dto);
+  }
+
+ @UseGuards(JwtAuthGuard, StoreGuard)
+  @Roles(Role.ADMIN)
+  @Post()
+  async create(@Body() dto: CreateCollectionDto) {
+    return this.productService.create(dto);
+  }
+
+
+
+
+  @UseGuards(JwtAuthGuard, StoreGuard)
+  @Roles(Role.ADMIN)
+  @Get(':id')
+  async findOne(@Param('id') id: string) {
+    return this.productService.findOne(id);
+  }
+
+  @UseGuards(JwtAuthGuard, StoreGuard)
+  @Roles(Role.ADMIN)
+  @Delete(':id')
+  async remove(@Param('id') id: string) {
+    return this.productService.remove(id);
+  }
+
+
+
+
 
 
 }

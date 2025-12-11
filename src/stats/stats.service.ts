@@ -120,6 +120,16 @@ async getProductStats(storeId: string) {
     return { totalProductsSold, totalRevenue, products };
   }
 
+    async getAllProducts() {
+    try {
+      // Récupérer tous les produits depuis la base de données
+      const products = await this.productModel.find();
+
+      return products;  // Retourne les produits récupérés
+    } catch (error) {
+      throw new Error('Erreur lors de la récupération des produits: ' + error.message);
+    }
+  }
 
   async getAllOrdersByStore(storeId: string) {
     if (!Types.ObjectId.isValid(storeId)) {

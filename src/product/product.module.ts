@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 
 import { Product, ProductSchema } from './entities/product.entity';
-import { ProductCollection, ProductCollectionSchema } from './entities/product-collection.entity';
 
 import { ProductOptionValue, ProductOptionValueSchema } from './entities/product-option-value.entity';
 import { ProductTag, ProductTagSchema } from './entities/product-tag.entity';
@@ -18,6 +17,7 @@ import { ProductCategory, ProductCategorySchema } from './entities/product-categ
 import { StoreGuard } from 'src/auth/StoreAuthGuard';
 import { Variant, VariantSchema } from './entities/product-variant.entity';
 import { User, UserSchema } from 'src/user/entities/user.entity';
+import { Collection, CollectionSchema } from './entities/product-collection.entity';
 
 @Module({
   imports: [
@@ -26,7 +26,7 @@ import { User, UserSchema } from 'src/user/entities/user.entity';
     MongooseModule.forFeature([
       { name: Product.name, schema: ProductSchema },
       { name: ProductCategory.name, schema: ProductCategorySchema },
-      { name: ProductCollection.name, schema: ProductCollectionSchema },
+      { name: Collection.name, schema: CollectionSchema },
       { name: ProductOption.name, schema: ProductOptionSchema },
       { name: ProductOptionValue.name, schema: ProductOptionValueSchema },
       { name: Variant.name, schema: VariantSchema },

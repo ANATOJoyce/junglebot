@@ -1,7 +1,8 @@
-import { IsEnum, IsMongoId, IsOptional, IsString, IsArray } from 'class-validator';
+import { IsEnum, IsMongoId, IsOptional, IsString, IsArray, IsDate, IsNotEmpty } from 'class-validator';
 import { PromotionMethod } from '../promotion-methode.enum';
 import { PromotionStatus } from '../enum-promotion';
 import { PromotionType } from '../entities/promotion-type.enum';
+import { Type } from 'class-transformer';
 
 export class CreatePromotionDto {
   @IsEnum(PromotionType)
@@ -50,6 +51,16 @@ export class CreatePromotionDto {
   @IsString()
   @IsOptional()
   Min_quantity?: string;
+
+  @Type(() => Date)   // 👈 transforme la string en Date
+  @IsDate()
+  @IsNotEmpty()
+  startDate: Date;
+
+  @Type(() => Date)   // 👈 idem pour endDate
+  @IsDate()
+  @IsNotEmpty()
+  endDate: Date;
 
   @IsMongoId()
   @IsOptional()

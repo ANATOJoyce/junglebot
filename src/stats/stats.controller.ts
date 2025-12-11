@@ -1,6 +1,7 @@
 import { Controller, Get, Param,  HttpException, HttpStatus, UseGuards } from '@nestjs/common';
 import { StatsService } from './stats.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { StoreGuard } from 'src/auth/StoreAuthGuard';
 
 @Controller('stats')
 export class StatsController {
@@ -33,12 +34,21 @@ export class StatsController {
     return { data: orders };
   }
 
-    @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Get('products/:storeId')
   getProductStats(@Param('storeId') storeId: string) {
     return this.statsService.getProductStats(storeId);
   }
 
+  @Get('products')
+  async getProduct() {
+    try {
+      const products = await this.statsService.getAllProducts();
+      return products;  // Retourner les produits récupérés
+    } catch (error) {
+      return { message: 'Erreur lors de la récupération des produits', error: error.message };
+    }
+  }
 /*
   
   @UseGuards(JwtAuthGuard)

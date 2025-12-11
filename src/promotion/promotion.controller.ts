@@ -13,12 +13,19 @@ import { CreatePromotionConditionDto } from './dto/create-promotion-condition.dt
 import { isValidObjectId } from 'mongoose';
 import { PromotionType } from './entities/promotion-type.enum';
 import { CreatePromotionDto } from './dto/create-promotion.dto';
+import { PromotionStatus } from './enum-promotion';
 
 @Controller('promotions')
 export class PromotionController {
   constructor(private readonly promotionService: PromotionService) {}
 
   // ---------------- CREATE ---------------- //
+
+
+  @Get(':storeId/amount-off-product')
+async getAmountOffProductPromotions(@Param('storeId') storeId: string) {
+  return this.promotionService.getAmountOffProductPromotions(storeId);
+}
 
 
   @UseGuards(JwtAuthGuard, StoreGuard)
@@ -60,17 +67,26 @@ async getPromotionById(@Param('id') id: string) {
   return this.promotionService.findById(id);
 }
 
-
 @UseGuards(JwtAuthGuard, StoreGuard)
-@Patch(':id/status')
+@Patch(':storeId/:id')
 async updateStatus(
   @Param('id') id: string,
-  @Body('status') status: string,
+  @Body('status') status: PromotionStatus,
+  @Body('startDate') startDate?: string,
+  @Body('endDate') endDate?: string,
 ) {
-  return this.promotionService.updateStatus(id, status);
+  return this.promotionService.updateStatus(
+    id,
+    status,
+    startDate ? new Date(startDate) : undefined,
+    endDate ? new Date(endDate) : undefined,
+  );
 }
-
   
+
+
+
+
   /**
    * Crée une promotion de type "Amount" (Order/Product)
    */

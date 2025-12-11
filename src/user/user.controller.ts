@@ -27,7 +27,10 @@ export class UserController {
     return user; // déjà bien typé grâce au décorateur
   }
   
-
+  @Get(':id')
+  async findOne(@Param('id') id: string) {
+    return this.userService.findOne(id);
+  }
 
   //user/:id(recherceh d'un utililisateur par son id )
 @UseGuards(AuthGuard('jwt'), RolesGuard)

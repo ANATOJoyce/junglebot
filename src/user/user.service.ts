@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, HydratedDocument } from 'mongoose';
+import { Model, HydratedDocument, isValidObjectId } from 'mongoose';
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -26,6 +26,23 @@ export class UserService {
 
 
   ) {}
+
+async findOne(id: string) {
+  if (!isValidObjectId(id)) {
+    throw new BadRequestException('ID invalide');
+  }
+
+  const user = await this.userModel
+    .findById(id)
+    .populate('stores')
+    .exec();
+
+  if (!user) {
+    throw new NotFoundException('Utilisateur introuvable');
+  }
+
+  return user;
+}
 
   /** Créer un nouvel utilisateur */
 async createUser(dto: CreateUserDto): Promise<User> {
@@ -144,28 +161,30 @@ async updateUser(userId: string, dto: UpdateUserDto): Promise<User> {
 
 
    // Récupérer tous les utilisateurs avec pagination et recherche
-  async findAll(page = 1, limit = 10, search = '') {
-    const query = search
-      ? {
-          $or: [
-            { first_name: { $regex: search, $options: 'i' } },
-            { last_name: { $regex: search, $options: 'i' } },
-            { email: { $regex: search, $options: 'i' } },
-            { phone: { $regex: search, $options: 'i' } },
-          ],
-        }
-      : {};
+async findAll(page = 1, limit = 10, search = '') {
+  const query = search
+    ? {
+        $or: [
+          { first_name: { $regex: search, $options: 'i' } },
+          { last_name: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } },
+          { phone: { $regex: search, $options: 'i' } },
+        ],
+      }
+    : {};
 
-    const users = await this.userModel
-      .find(query)
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .exec();
+  const users = await this.userModel
+    .find(query)
+    .populate('stores') // <-- ici tu lies la boutique
+    .skip((page - 1) * limit)
+    .limit(limit)
+    .exec();
 
-    const count = await this.userModel.countDocuments(query);
+  const count = await this.userModel.countDocuments(query);
 
-    return { users, count };
-  }
+  return { users, count };
+}
+
 
   // Supprimer un utilisateur par ID
   async remove(userId: string) {
