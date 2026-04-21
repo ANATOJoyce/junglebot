@@ -38,7 +38,50 @@ export class ProductController {
   // ==============================================
   // SECTION 1: CORE PRODUCT OPERATIONS
   // ==============================================
-  
+
+
+@UseGuards(JwtAuthGuard, StoreGuard)
+@Roles(Role.ADMIN, Role.VENDOR, Role.CUSTOMER)
+@Get('store/:storeId')
+  async getProducts(
+    @Param('storeId') storeId: string,
+    @Query('page') page = '1',
+    @Query('limit') limit = '10',
+    @Query('search') search?: string
+    
+  ) {
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    // Construction des paramètres de recherche
+    const queryOptions: any = {
+      storeId,
+      page: pageNum,
+      limit: limitNum,
+    };
+
+    if (search) queryOptions.search = search;
+
+    // Appel du service pour récupérer les produits
+    return this.productService.getProductsForStore({
+  storeId,
+  page: pageNum,
+  limit: limitNum,
+  search,
+});
+
+}
+
+ @Get('budget')
+async searchByBudget(
+  @Query('min') min: number,
+  @Query('max') max: number,
+  @Query('name') name?: string // paramètre optionnel
+) {
+  return this.productService.searchProductsByBudget(min, max, name);
+}
+
+
+
  /*
   @Get(':id')
   @Roles(Role.ADMIN, Role.VENDOR)
@@ -72,6 +115,12 @@ export class ProductController {
     return this.productService.searchProductsByTitleFuzzy(title);
   }
 
+  @Get('search-by-category')
+  async searchByCategory(
+    @Query('category') category: string,
+  ) {
+    return this.productService.searchProductsByCategoryNameFuzzy(category);
+  }
   
  @Get('categories')
   async findAllCategories(
@@ -124,36 +173,7 @@ async findOne(@Param('id') id: string) {
 
 
 
-@UseGuards(JwtAuthGuard, StoreGuard)
-@Roles(Role.ADMIN, Role.VENDOR, Role.CUSTOMER)
-  @Get('store/:storeId')
-  async getProducts(
-    @Param('storeId') storeId: string,
-    @Query('page') page = '1',
-    @Query('limit') limit = '10',
-    @Query('search') search?: string
-    
-  ) {
-    const pageNum = parseInt(page, 10);
-    const limitNum = parseInt(limit, 10);
-    // Construction des paramètres de recherche
-    const queryOptions: any = {
-      storeId,
-      page: pageNum,
-      limit: limitNum,
-    };
 
-    if (search) queryOptions.search = search;
-
-    // Appel du service pour récupérer les produits
-    return this.productService.getProductsForStore({
-  storeId,
-  page: pageNum,
-  limit: limitNum,
-  search,
-});
-
-}
 
 
 
@@ -190,7 +210,7 @@ async findOne(@Param('id') id: string) {
   // Mettre à jour le status
   @Patch(':id/status')
   async updateStatus(@Param('id') id: string, @Body('status') status: string) {
-    return this.productService.updateStatus(id, status);
+    return this.productService.updateStatus(id, status as ProductStatus);
   }
 
  
@@ -216,18 +236,6 @@ async findOne(@Param('id') id: string) {
   // SECTION 5: PRODUCT CATEGORIES
   // ==============================================
 
-
-  @Post('tags')
-  @Roles(Role.ADMIN, Role.VENDOR)
-  createTag(@Body() dto: CreateProductTagDto) {
-    return this.productService.createProductTag(dto);
-  }
-
-  @Get('tags')
-  @Roles(Role.ADMIN, Role.VENDOR)
-  listTags() {
-    return this.productService.listProductTags();
-  }
 
 
  
@@ -267,15 +275,6 @@ async findOne(@Param('id') id: string) {
       
       sort                // Tri des produits
     );
-  }
-
-
-  @Get('budget')
-  async searchByBudget(
-    @Query('min') min: number,
-    @Query('max') max: number
-  ) {
-    return this.productService.searchProductsByBudget(min, max);
   }
 
 
@@ -348,15 +347,10 @@ async getCategoriesByStore(
   }
 
   @UseGuards(JwtAuthGuard, StoreGuard)
-  @Roles(Role.ADMIN)
   @Delete(':id')
   async remove(@Param('id') id: string) {
-    return this.productService.remove(id);
+    return this.productService.deleteProduct(id);
   }
-
-
-
-
 
 
 }

@@ -1,6 +1,7 @@
-import { IsMongoId, IsArray, ArrayMinSize, IsOptional, IsNumber, Min } from 'class-validator';
+import { IsMongoId, IsArray, ArrayMinSize, IsOptional, IsNumber, Min, IsNotEmpty } from 'class-validator';
 
 export class CreateCartDto {
+  @IsNotEmpty()
   @IsMongoId()
   customer: string;
 

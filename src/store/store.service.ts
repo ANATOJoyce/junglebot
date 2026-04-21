@@ -210,6 +210,16 @@ async findAll(params: any) {
       .populate('owner', 'email first_name last_name');
   }
 
+// store.service.ts
+async findAllSimple() {
+  const stores = await this.storeModel
+    .find()
+    .populate("owner", "email first_name last_name")
+    .populate("country", "name currency_code")
+    .lean();
+
+  return stores;
+}
 
   
   async update(id: string, updateStoreDto: UpdateStoreDto): Promise<Store> {

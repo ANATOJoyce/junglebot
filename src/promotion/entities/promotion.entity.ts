@@ -15,46 +15,42 @@ export class Promotion extends Document {
   @Prop({ type: String, enum: PromotionStatus, default: PromotionStatus.DRAFT })
   status: PromotionStatus;
 
+  @Prop({ required: false })
+  promotionValue?: number;   //  number au lieu de string
 
-  @Prop({ required: false }) // ← Important (ceci peut etre un nombre ou en pourcentage)
-  Promotion_value?: string;
-
-  @Prop({ unique: true, sparse: true }) // ← Important
+  @Prop({ unique: true, sparse: true })
   code?: string;
 
-  @Prop({ required: false}) // ← Important
-  taxe_include?: string;
+  @Prop({ required: false })
+  taxeInclude?: boolean;     // ⚡ boolean au lieu de string
 
-  @Prop({ required: false }) // ← Important ()
+  @Prop({ required: false })
   condition?: string[];
 
-  @Prop({ required: true }) // ← Important
+  @Prop({ required: true })
   value: number;
 
-  @Prop({ required: false }) // ← Important( c'est dans le cas oiu c'est un amount of produit on l"applique a soit tout les produits ou quelque nombre de produit seulement, )
+  @Prop({ required: false })
   discount?: string;
 
-  @Prop({ required: false }) // ← Important'(amount of product lorsque discount est a once pour choisir combien de quantité il doit y avoir dans le panier avant de pouvoir applique la regle )
-  Max_quantity?: string;
+  @Prop({ required: false })
+  maxQuantity?: number;      //  number
 
-  @Prop({ required: false, }) // ← Important'(amount of product lorsque discount est a once pour choisir combien de quantité il doit y avoir dans le panier avant de pouvoir applique la regle )
-  Min_quantity?: string;
+  @Prop({ required: false })
+  minQuantity?: number;      //  number
 
-  @Prop({ unique: true, sparse: true }) // ← Important'(amount of product lorsque discount est a once pour choisir combien de quantité il doit y avoir dans le panier avant de pouvoir applique la regle )
-  startDate?: Date;
+  @Prop({ required: false })
+  startDate?: Date;          //  Date
 
-  @Prop({ unique: true, sparse: true }) // ← Important'(amount of product lorsque discount est a once pour choisir combien de quantité il doit y avoir dans le panier avant de pouvoir applique la regle )
-  endDate?: Date;
-
+  @Prop({ required: false })
+  endDate?: Date;            //  Date
 
   @Prop({ type: Types.ObjectId, ref: 'Campaign' })
   campaign?: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'Store' })
   store?: Types.ObjectId;
-
 }
-
 
 export type PromotionDocument = Promotion & Document;
 export const PromotionSchema = SchemaFactory.createForClass(Promotion);

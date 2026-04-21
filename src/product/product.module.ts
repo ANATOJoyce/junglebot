@@ -40,6 +40,7 @@ import { Collection, CollectionSchema } from './entities/product-collection.enti
   ],
   controllers: [ProductController],
   providers: [ProductService, StoreGuard],
+  exports: [ProductService],
 })
 export class ProductModule {}
  

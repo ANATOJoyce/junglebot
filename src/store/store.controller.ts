@@ -39,7 +39,10 @@ async create(@Body() dto: CreateStoreDto, @Req() req) {
     return this.storeService.findAll(query);
   }
 
-
+  @Get("all")
+  async getAllStores() {
+    return this.storeService.findAllSimple();
+  }
   /*@UseGuards(AuthGuard('jwt'), RolesGuard)*/
   @Roles(Role.VENDOR)
   @UseGuards(AuthGuard('jwt'), RolesGuard)

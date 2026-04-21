@@ -4,6 +4,8 @@ import { CartController } from './cart.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Cart, CartSchema } from './entities/cart.entity';
 import { LineItem, LineItemSchema } from './entities/line-item.entity';
+import { Product, ProductSchema } from 'src/product/entities/product.entity';
+import { ProductModule } from 'src/product/product.module';
 
 
 @Module({
@@ -11,7 +13,10 @@ import { LineItem, LineItemSchema } from './entities/line-item.entity';
     MongooseModule.forFeature([
       { name: Cart.name, schema: CartSchema },
       { name: LineItem.name, schema: LineItemSchema },
+      { name: Product.name, schema: ProductSchema },  //AJOUT OBLIGATOIRE
+     
     ]),
+     ProductModule,
   ],
   controllers: [CartController],   // ← Assure-toi qu’il est ici
   providers: [CartService],

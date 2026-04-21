@@ -44,6 +44,15 @@ async findOne(id: string) {
   return user;
 }
 
+
+// user.service.ts
+async findAllSimple() {
+  return this.userModel
+    .find()
+    .select("email phone first_name last_name role createdAt")
+    .lean();
+}
+
   /** Créer un nouvel utilisateur */
 async createUser(dto: CreateUserDto): Promise<User> {
   const user = new this.userModel({

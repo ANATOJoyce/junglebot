@@ -1,37 +1,81 @@
-import { Body, Controller, Get, Param, Patch, Post, NotFoundException } from '@nestjs/common';
+import { Controller, Post, Body, Param, Delete, Patch, Get, Req,UseGuards, BadRequestException, NotFoundException, Query, Put } from '@nestjs/common';
 import { CartService } from './cart.service';
-import { CreateCartDto } from './dto/create-cart.dto';
-import { UpdateCartDto } from './dto/update-cart.dto';
+import { AddCartItemDto } from './dto/add-cart-item.dto';
+import { AuthGuard } from '@nestjs/passport';
 import { Types } from 'mongoose';
+import { UpdateCartDto } from './dto/update-cart.dto';
+import { UpdateCartItemDto } from './dto/update-cart-item.dto';
+import { UpdateCartItemByNameDto } from './dto/update-cart-item-by-name.dto';
+import { ProductService } from 'src/product/product.service';
 
 @Controller('cart')
 export class CartController {
-  constructor(private readonly cartService: CartService) {}
+  constructor(private readonly cartService: CartService,
+      private readonly productService: ProductService,
+  ) {}
 
-  // Créer un nouveau panier
+  // Récupérer le panier actif
+
   @Post('add')
-  async create(@Body() createCartDto: CreateCartDto) {
-    return this.cartService.create(createCartDto);
-  }
+  async addToCart(@Body() addCartItemDto: AddCartItemDto) {
+    const { sessionId, product, quantity } = addCartItemDto;
 
-  // Récupérer tous les paniers
-  @Get()
-  async findAll() {
-    return this.cartService.findAll();
-  }
-
-  // Récupérer un panier par ID
-  @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return this.cartService.findOne(id);
-  }
-
-  // Mettre à jour l'ordre lié à un panier
-  @Patch(':cartId/order')
-  async updateOrder(@Param('cartId') cartId: string, @Body('orderId') orderId: string) {
-    if (!Types.ObjectId.isValid(orderId)) {
-      throw new NotFoundException('Invalid order ID');
+    if (!sessionId) {
+      throw new BadRequestException('sessionId manquant');
     }
-    return this.cartService.updateOrder(cartId, new Types.ObjectId(orderId));
+
+    return this.cartService.addItem(sessionId, product, quantity);
   }
+
+    @Get('view')
+  async viewCart(
+    @Query('sessionId') sessionId?: string,
+    @Query('customerId') customerId?: string,
+  ) {
+    const cart = await this.cartService.getActiveCart(sessionId, customerId);
+    if (!cart) {
+      throw new NotFoundException('Panier introuvable');
+    }
+    return cart;
+  }
+
+  // 🔹 Modifier un item
+  @Patch('item')
+  async updateCartItem(
+    @Body() updateCartItemDto: UpdateCartItemByNameDto,
+    @Query('sessionId') sessionId?: string,
+    @Query('customerId') customerId?: string,
+  ) {
+    const cart = await this.cartService.updateCartItemByName(
+      updateCartItemDto,
+      sessionId,
+      customerId,
+    );
+
+    if (!cart) throw new NotFoundException('Panier introuvable');
+
+    return cart;
+  }
+
+  // 🔹 Supprimer un item
+  @Delete('item')
+  async removeCartItem(
+    @Body() body: { product_id?: string; product_name?: string },
+    @Query('sessionId') sessionId?: string,
+    @Query('customerId') customerId?: string,
+  ) {
+    const cart = await this.cartService.removeCartItemByName(
+      body,
+      sessionId,
+      customerId,
+    );
+
+    if (!cart) throw new NotFoundException('Panier introuvable');
+
+    return cart;
+  }
+
+  
+  // 🔹 Supprimer un produit du panier
+ 
 }

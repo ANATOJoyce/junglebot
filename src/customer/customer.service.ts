@@ -1,277 +1,233 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { JwtService } from '@nestjs/jwt';
-import { User } from 'src/user/entities/user.entity';
-import { TokensDto } from 'src/auth/dto/tokens.dto';
-import { Role } from 'src/auth/role.enum';
-import { RegisterDto } from './dto/registerCustomer.dto';
-import { v4 as uuidv4 } from 'uuid';
 import { Customer, CustomerDocument, CustomerStatus } from './entities/customer.entity';
-import { CustomerGroup, CustomerGroupDocument } from './entities/customer-group.entity';
-import { CustomerGroupCustomer, CustomerGroupCustomerDocument } from './entities/customer-group-customer.entity';
-import { CreateCustomerGroupDto, UpdateCustomerGroupDto } from './dto/customer-group.dto';
-import { CreateCustomerGroupCustomerDto, UpdateCustomerGroupCustomerDto } from './dto/customer-group-customer.dto';
+import { CreateCustomerDto } from './dto/create-customer.dto';
+import { UpdateCustomerDto } from './dto/update-customer.dto';
+import { VerificationCodeService } from 'src/verification/verification-code.service';
+import { MailService } from 'src/mail/mail.service';
+import { ProviderIdentity, ProviderIdentityDocument } from 'src/auth/entities/provider-identity.entity';
+import { VerificationCode, VerificationCodeDocument, VerificationType } from 'src/verification/entities/verification-code.entity';
+import * as bcrypt from 'bcrypt';
 import { Order, OrderDocument } from 'src/order/entities/CommandePrincipale/order.entity';
 
-export interface CustomerOrder {
-  _id: string;
-  display_id: string;
-  total: number;
-  status: string;
-  currency_code: string;
-  createdAt: Date;
-  payments?: Array<{ status: string; amount: number }>;
-  items?: Array<{ quantity: number; item: { title: string; price: number } }>;
-}
 
-export interface CustomerSummary {
-  _id: string;
-  name: string;
-  email: string;
-  phone?: string;
-  createdAt: Date;
-  lastLoginAt?: Date;
-  totalOrders: number;
-  totalSpent: number;
-  lastOrderDate: Date | null;
-  avgOrderValue: number;
-  orders: CustomerOrder[];
-}
 @Injectable()
 export class CustomerService {
-  constructor(
-    @InjectModel(Customer.name) private customerModel: Model<CustomerDocument>,
-    @InjectModel(CustomerGroup.name) private customerGroupModel: Model<CustomerGroupDocument>,
-     @InjectModel(Order.name) private readonly orderModel: Model<OrderDocument>,
+    constructor(@InjectModel(Customer.name) private customerModel: Model<CustomerDocument>,
+            @InjectModel(VerificationCode.name)  private verificationCodeModel: Model<VerificationCodeDocument>,
+                private mailService: MailService,
+                private readonly verificationCodeService: VerificationCodeService,
+            @InjectModel(Order.name)  private orderModel: Model<OrderDocument>,
 
-    @InjectModel(CustomerGroupCustomer.name) private customerGroupCustomerModel: Model<CustomerGroupCustomerDocument>,
-  ) {}
+                ) {}
 
-  async register(dto: RegisterDto): Promise<Customer> {
-      const created = new this.customerModel(dto);
-      return created.save();
+  async createCustomer(createCustomerDto: CreateCustomerDto): Promise<any> {
+    const { name, email, password } = createCustomerDto;
+
+    // Vérifier si l'email existe déjà
+    const existing = await this.customerModel.findOne({ email });
+    if (existing) {
+      throw new BadRequestException('Email déjà utilisé.');
     }
 
-    async findAll(): Promise<Customer[]> {
-      return this.customerModel.find().exec();
-    }
+    // Hasher le mot de passe
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    async findOne(id: number): Promise<Customer> {
-      const customer = await this.customerModel.findById(id).exec();
-      if (!customer) throw new NotFoundException('Customer not found');
-      return customer;
-    }
-
-   /* async update(id: number, dto: UpdateCustomerDto): Promise<Customer> {
-      const updated = await this.customerModel.findByIdAndUpdate(id, dto, { new: true }).exec();
-      if (!updated) throw new NotFoundException('Customer not found');
-      return updated;
-    }
-*/
-    async remove(id: number): Promise<Customer> {
-      const deleted = await this.customerModel.findByIdAndDelete(id).exec();
-      if (!deleted) throw new NotFoundException('Customer not found');
-      return deleted;
-    }
-
-  // -----------------------------
-  // CUSTOMER GROUP
-  // -----------------------------
-  async createGroup(dto: CreateCustomerGroupDto, storeId: string): Promise<CustomerGroup> {
-    const created = new this.customerGroupModel({ ...dto, storeId });
-    return created.save();
-  }
-
-  async findAllGroups(storeId: string): Promise<CustomerGroup[]> {
-    return this.customerGroupModel
-      .find({ storeId, deleted_at: null })
-      .populate('customers')
-      .exec();
-  }
-
-  async findGroup(id: string, storeId: string): Promise<CustomerGroup> {
-    const group = await this.customerGroupModel
-      .findOne({ _id: id, storeId, deleted_at: null })
-      .populate('customers')
-      .exec();
-    if (!group) throw new NotFoundException('CustomerGroup not found');
-    return group;
-  }
-
-  async updateGroup(id: string, storeId: string, dto: UpdateCustomerGroupDto): Promise<CustomerGroup> {
-    const updated = await this.customerGroupModel
-      .findOneAndUpdate({ _id: id, storeId, deleted_at: null }, dto, { new: true })
-      .exec();
-    if (!updated) throw new NotFoundException('CustomerGroup not found');
-    return updated;
-  }
-
-  async removeGroup(id: string, storeId: string): Promise<CustomerGroup> {
-    const deleted = await this.customerGroupModel.findOneAndUpdate(
-      { _id: id, storeId, deleted_at: null },
-      { deleted_at: new Date() },
-      { new: true },
-    );
-    if (!deleted) throw new NotFoundException('CustomerGroup not found');
-    return deleted;
-  }
-
-  // -----------------------------
-  // CUSTOMER GROUP CUSTOMER
-  // -----------------------------
-  async createGroupCustomer(dto: CreateCustomerGroupCustomerDto, storeId: string): Promise<CustomerGroupCustomer> {
-    const id = `cusgc_${uuidv4()}`;
-    const created = new this.customerGroupCustomerModel({ ...dto, id, storeId });
-    return created.save();
-  }
-
-  async findAllGroupCustomers(storeId: string): Promise<CustomerGroupCustomer[]> {
-    return this.customerGroupCustomerModel
-      .find({ storeId, deleted_at: null })
-      .populate('customer_group')
-      .exec();
-  }
-
-  async findGroupCustomer(id: string, storeId: string): Promise<CustomerGroupCustomer> {
-    const entity = await this.customerGroupCustomerModel
-      .findOne({ id, storeId, deleted_at: null })
-      .populate('customer_group')
-      .exec();
-    if (!entity) throw new NotFoundException('CustomerGroupCustomer not found');
-    return entity;
-  }
-
-  async updateGroupCustomer(id: string, storeId: string, dto: UpdateCustomerGroupCustomerDto): Promise<CustomerGroupCustomer> {
-    const updated = await this.customerGroupCustomerModel
-      .findOneAndUpdate({ id, storeId, deleted_at: null }, dto, { new: true })
-      .exec();
-    if (!updated) throw new NotFoundException('CustomerGroupCustomer not found');
-    return updated;
-  }
-
-  async removeGroupCustomer(id: string, storeId: string): Promise<CustomerGroupCustomer> {
-    const deleted = await this.customerGroupCustomerModel.findOneAndUpdate(
-      { id, storeId, deleted_at: null },
-      { deleted_at: new Date() },
-      { new: true },
-    );
-    if (!deleted) throw new NotFoundException('CustomerGroupCustomer not found');
-    return deleted;
-  }
-
- async findAllWithDetails(): Promise<any[]> {
-    const customers = await this.customerModel.find().lean();
-
-    const detailedCustomers = await Promise.all(
-      customers.map(async (customer) => {
-        // Récupérer toutes les commandes du client
-        const orders = await this.orderModel
-          .find({ customer_id: customer._id })
-          .select('total createdAt')
-          .sort({ createdAt: -1 })
-          .lean();
-
-        // Calculer la date de la dernière commande
-        const lastOrderDate = orders.length
-          ? new Date(Math.max(...orders.map((o) => new Date(o.createdAt!).getTime())))
-          : null;
-
-        return {
-          id: customer._id,
-          name: customer.name,
-          email: customer.email,
-          role: customer.role,
-          status: customer.status,
-          createdAt: customer.createdAt,
-          lastOrderDate,
-          orderCount: orders.length,
-        };
-      }),
-    );
-
-    return detailedCustomers;
-  }
-
-
-async findAllByStore(storeId: string, page = 1, limit = 10) {
-    if (!Types.ObjectId.isValid(storeId)) {
-      throw new NotFoundException('storeId invalide');
-    }
-
-    const skip = (page - 1) * limit;
-    const storeObjectId = new Types.ObjectId(storeId);
-
-    // Récupérer toutes les commandes de la boutique avec info client
-    const orders = await this.orderModel
-      .find({ store: storeObjectId })
-      .populate('customer_id', 'name email phone createdAt') // infos client
-      .populate('items') // si besoin côté front
-      .exec();
-
-    // Grouper les commandes par client
-    const customerMap = new Map<string, {
-      customer: Customer;
-      orders: Order[];
-      totalSpent: number;
-    }>();
-
-    for (const order of orders) {
-      const customer = order.customer as Customer;
-      if (!customer) continue;
-
-      const customerId = (customer._id as Types.ObjectId).toString();
-      if (!customerMap.has(customerId)) {
-        customerMap.set(customerId, {
-          customer,
-          orders: [],
-          totalSpent: 0,
-        });
-      }
-
-      const entry = customerMap.get(customerId)!;
-      entry.orders.push(order);
-
-      // Calcul total dépensé
-      entry.totalSpent += order.items?.reduce((sum, item) => {
-        // item.product_name et item.unit_price sont définis
-        return sum + (item.quantity * item.price);
-      }, 0) || 0;
-    }
-
-    // Transformer en tableau avec stats
-    const customersWithStats = Array.from(customerMap.values()).map(entry => {
-      const sortedOrders = entry.orders.sort(
-        (a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0)
-      );
-      const lastOrder = sortedOrders[0] || null;
-
-      return {
-        _id: entry.customer._id,
-        name: entry.customer.name,
-        email: entry.customer.email,
-        phone: entry.customer.phone,
-        createdAt: entry.customer.createdAt,
-        totalOrders: entry.orders.length,
-        totalSpent: entry.totalSpent,
-        lastOrderDate: lastOrder?.createdAt || null,
-        avgOrderValue: entry.orders.length ? entry.totalSpent / entry.orders.length : 0,
-        orders: entry.orders, // toutes les commandes si besoin côté front
-      };
+    // Créer le customer
+    const customer = new this.customerModel({
+      name,
+      email,
+      password: hashedPassword,
+      status: CustomerStatus.NOUVEAU,
     });
 
-    // Pagination
-    const total = customersWithStats.length;
-    const paginated = customersWithStats.slice(skip, skip + limit);
+    const savedCustomer = await customer.save();
 
-    return {
-      customers: paginated,
-      meta: {
-        total,
-        page,
-        pageSize: limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+    // Générer et envoyer le code de vérification par mail
+    await this.createCustomerVerificationCode(email, name);
+
+    // Retourner le customer sans le mot de passe
+    const { password: _, ...customerData } = savedCustomer.toObject();
+    return customerData;
   }
+
+  async createCustomerVerificationCode(email: string, name: string): Promise<string> {
+    // Générer un code aléatoire à 6 chiffres
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Date d’expiration : 15 minutes
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 15);
+
+    // Sauvegarder le code dans la collection VerificationCode
+    await this.verificationCodeModel.create({
+      email,
+      code,
+      type: VerificationType.ACCOUNT,
+      expiresAt,
+    });
+
+    // Préparer le mail
+    const subject = 'Bienvenue sur Jungle 🎉';
+    const html = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <h1 style="color: #fbb344;">Bienvenue, ${name} !</h1>
+        <p>Votre compte a été créé avec succès.</p>
+        <p>Veuillez confirmer votre adresse email avec le code ci-dessous :</p>
+        <h2 style="color:#fbb344;letter-spacing:3px;">${code}</h2>
+        <p style="margin-top: 20px;">Ce code est valable pendant 15 minutes.</p>
+      </div>
+    `;
+
+    await this.mailService.sendMail({
+      to: email,
+      subject,
+      html,
+    });
+
+    return code;
+  }
+
+  async verifyAccountCode(email: string, code: string) {
+    const verification = await this.verificationCodeModel.findOne({ email, code, type: VerificationType.ACCOUNT });
+    if (!verification) throw new BadRequestException('Code invalide ou expiré.');
+    if (verification.expiresAt < new Date()) throw new BadRequestException('Code expiré.');
+
+    // Nettoyage après vérification
+    await this.verificationCodeModel.deleteOne({ _id: verification._id });
+
+    // Mettre à jour le Customer
+    await this.customerModel.updateOne({ email }, { $set: { isEmailVerified: true } });
+
+    return { message: 'Code validé avec succès. Votre email est maintenant confirmé.' };
+  }
+
+
+  async resendVerificationCode(email: string) {
+  const customer = await this.customerModel.findOne({ email });
+
+  if (!customer) {
+    throw new BadRequestException('Compte introuvable');
+  }
+
+  if (customer.isEmailVerified) {
+    throw new BadRequestException('Compte déjà vérifié');
+  }
+
+  if (!customer.email) {
+  throw new BadRequestException("Email du client manquant");
+}
+  await this.createCustomerVerificationCode(
+    customer.email,
+    customer.name || 'Client',
+  );
+
+  return {
+    message: 'Un nouveau code a été envoyé par email',
+  };
+}
+
+
+  async findByEmail(email: string): Promise<Customer | null> {
+    return this.customerModel.findOne({ email }).exec();
+  }
+
+  async authenticate(email: string, password: string) {
+  const customer = await this.customerModel.findOne({ email });
+
+  if (!customer) {
+    return null;
+  }
+
+  const isValid = await bcrypt.compare(password, customer.password);
+
+  if (!isValid) {
+    return null;
+  }
+
+  return {
+    customerId: customer._id,
+    email: customer.email,
+    name: customer.name,
+  };
+}
+  async getAllCustomers(): Promise<Customer[]> {
+    return this.customerModel.find().exec();
+  }
+
+  async getCustomerById(id: string): Promise<Customer> {
+    const customer = await this.customerModel.findById(id);
+    if (!customer) throw new NotFoundException('Customer non trouvé');
+    return customer;
+  }
+
+  async updateCustomer(id: string, dto: UpdateCustomerDto): Promise<Customer> {
+    const customer = await this.customerModel.findByIdAndUpdate(id, dto, { new: true });
+    if (!customer) throw new NotFoundException('Customer non trouvé');
+    return customer;
+  }
+
+  async deleteCustomer(id: string): Promise<Customer> {
+    const customer = await this.customerModel.findByIdAndDelete(id);
+    if (!customer) throw new NotFoundException('Customer non trouvé');
+    return customer;
+  }
+
+
+ async verifyCode(email: string, code: string, type: VerificationType): Promise<boolean> {
+    const user = await this.customerModel.findOne({ email });
+    if (!user) return false;
+
+    const verification = await this.verificationCodeModel.findOne({
+      email,
+      code,
+      type,
+    });
+
+    if (!verification) return false;
+    if (verification.expiresAt < new Date()) return false;
+
+    // Nettoyage après vérification
+    await this.verificationCodeModel.deleteOne({ _id: verification._id });
+
+    return true;
+  }
+
+
+  async getCustomerWithOrders(customerId: string) {
+  if (!Types.ObjectId.isValid(customerId)) {
+    throw new BadRequestException('ID client invalide');
+  }
+
+  return this.customerModel
+    .findById(customerId)
+    .populate({
+      path: 'orders',
+      model: 'Order',
+    });
+}
+async findCustomersWithOrders(): Promise<any[]> {
+  const customers = await this.customerModel.find().lean();
+  const customerIds = customers.map(c => c._id);
+
+  const orders = await this.orderModel
+    .find({ customer: { $in: customerIds } })
+    .populate('items.product', 'name price')
+    .lean();
+
+  const ordersByCustomer = orders.reduce((acc, order) => {
+    const cid = order.customer.toString();
+    if (!acc[cid]) acc[cid] = [];
+    acc[cid].push(order);
+    return acc;
+  }, {} as Record<string, any[]>);
+
+  return customers.map(c => ({
+    ...c,
+    orders: ordersByCustomer[c._id.toString()] || [],
+  }));
+}
+
+  
 }

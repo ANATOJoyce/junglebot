@@ -28,56 +28,55 @@ export class PromotionService {
 
   // ---------------- CREATE ---------------- //
 
-  async createPromotion(
-    dto: CreatePromotionDto,
-    storeId: string,
-  ): Promise<Promotion> {
-    try {
-      //  Vérifie si un code promotion existe déjà
-      if (dto.code) {
-        const existingPromo = await this.promotionModel.findOne({ code: dto.code });
-        if (existingPromo) {
-          throw new BadRequestException(
-            `Le code promotion "${dto.code}" existe déjà. Veuillez en choisir un autre.`,
-          );
-        }
-      }
-
-      //  Création du document
-      const promotion = new this.promotionModel({
-        type: dto.type,
-        method: dto.method,
-        code: dto.code,
-        Promotion_value: dto.Promotion_value,
-        taxe_include: dto.taxe_include,
-        condition: dto.condition,
-        operateur: dto.operateur,
-        value: dto.value,
-        discount: dto.discount,
-        Max_quantity: dto.Max_quantity,
-        Min_quantity: dto.Min_quantity,
-        campaign: dto.campaign ? new Types.ObjectId(dto.campaign) : undefined,
-        store: new Types.ObjectId(storeId),
-        status: dto.status || PromotionStatus.DRAFT,
-        startDate: dto.startDate,
-        endDate:dto.endDate
-      });
-
-      return await promotion.save();
-    } catch (error) {
-      //  Gestion d’erreur MongoDB (clé dupliquée)
-      if (error.code === 11000 && error.keyPattern?.code) {
+async createPromotion(
+  dto: CreatePromotionDto,
+  storeId: string,
+): Promise<Promotion> {
+  try {
+    // 🔎 Vérifie si un code promotion existe déjà
+    if (dto.code) {
+      const existingPromo = await this.promotionModel.findOne({ code: dto.code });
+      if (existingPromo) {
         throw new BadRequestException(
-          `Le code promotion "${error.keyValue.code}" existe déjà. Veuillez en choisir un autre.`,
+          `Le code promotion "${dto.code}" existe déjà. Veuillez en choisir un autre.`,
         );
       }
+    }
 
+    // ✅ Création du document avec les bons champs
+    const promotion = new this.promotionModel({
+      type: dto.type,
+      method: dto.method,
+      code: dto.code,
+      promotionValue: dto.promotionValue,   // number
+      taxeInclude: dto.taxeInclude,         // boolean
+      condition: dto.condition,
+      operateur: dto.operateur,
+      value: dto.value,                     // number
+      discount: dto.discount,
+      maxQuantity: dto.maxQuantity,         // number
+      minQuantity: dto.minQuantity,         // number
+      campaign: dto.campaign ? new Types.ObjectId(dto.campaign) : undefined,
+      store: new Types.ObjectId(storeId),
+      status: dto.status || PromotionStatus.DRAFT,
+      startDate: dto.startDate,
+      endDate: dto.endDate,
+    });
+
+    return await promotion.save();
+  } catch (error) {
+    // ⚠️ Gestion d’erreur MongoDB (clé dupliquée)
+    if (error.code === 11000 && error.keyPattern?.code) {
       throw new BadRequestException(
-        `Erreur lors de la création de la promotion : ${error.message}`,
+        `Le code promotion "${error.keyValue.code}" existe déjà. Veuillez en choisir un autre.`,
       );
     }
-  }
 
+    throw new BadRequestException(
+      `Erreur lors de la création de la promotion : ${error.message}`,
+    );
+  }
+}
 // promotion.service.ts
 async findById(id: string): Promise<Promotion> {
   try {

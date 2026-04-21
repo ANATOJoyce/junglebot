@@ -18,6 +18,14 @@ import { CurrentUser } from 'src/auth/current-user.decorator';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
+  // user.controller.ts
+//@UseGuards(AuthGuard("jwt"), RolesGuard)
+//@Roles(Role.ADMIN)
+@Get("all")
+async findAllSimple() {
+  return this.userService.findAllSimple();
+}
+
 
   
   @UseGuards(AuthGuard('jwt'), RolesGuard)

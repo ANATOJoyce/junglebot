@@ -1,4 +1,14 @@
-import { IsEnum, IsMongoId, IsOptional, IsString, IsArray, IsDate, IsNotEmpty } from 'class-validator';
+import {
+  IsEnum,
+  IsMongoId,
+  IsOptional,
+  IsString,
+  IsArray,
+  IsDate,
+  IsNotEmpty,
+  IsNumber,
+  IsBoolean,
+} from 'class-validator';
 import { PromotionMethod } from '../promotion-methode.enum';
 import { PromotionStatus } from '../enum-promotion';
 import { PromotionType } from '../entities/promotion-type.enum';
@@ -15,17 +25,19 @@ export class CreatePromotionDto {
   @IsOptional()
   status?: PromotionStatus;
 
-  @IsString()
+  @IsNumber()
   @IsOptional()
-  Promotion_value?: string; // Montant ou pourcentage
+  @Type(() => Number)
+  promotionValue?: number; // Montant ou pourcentage
 
   @IsString()
   @IsOptional()
   code?: string;
 
-  @IsString()
+  @IsBoolean()
   @IsOptional()
-  taxe_include?: string;
+  @Type(() => Boolean)
+  taxeInclude?: boolean;
 
   @IsArray()
   @IsOptional()
@@ -36,21 +48,24 @@ export class CreatePromotionDto {
   @IsOptional()
   operateur?: string;
 
-  @IsString()
+  @IsNumber()
   @IsOptional()
-  value?: string;
+  @Type(() => Number)
+  value?: number;
 
   @IsString()
   @IsOptional()
   discount?: string;
 
-  @IsString()
+  @IsNumber()
   @IsOptional()
-  Max_quantity?: string;
+  @Type(() => Number)
+  maxQuantity?: number;
 
-  @IsString()
+  @IsNumber()
   @IsOptional()
-  Min_quantity?: string;
+  @Type(() => Number)
+  minQuantity?: number;
 
   @Type(() => Date)   // 👈 transforme la string en Date
   @IsDate()
@@ -65,5 +80,4 @@ export class CreatePromotionDto {
   @IsMongoId()
   @IsOptional()
   campaign?: string;
-
 }

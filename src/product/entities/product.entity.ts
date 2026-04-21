@@ -24,17 +24,18 @@ export class Product {
 
   @Prop({ required: true })
   price: number;
-  // 👇 Champ booléen pour savoir si le produit est en promotion
+  //  Champ booléen pour savoir si le produit est en promotion
   @Prop({ default: false })
   isPromotion: boolean;
 
-  // 👇 Référence vers la collection Promotion
+  // Référence vers la collection Promotion
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Promotion' }] })
   promotions: Promotion[];
 
+  @Prop({ required: false }) //  pas obligatoire, rempli par le backend
+  finalPrice?: number;
   @Prop({ type: Types.ObjectId, ref: 'ProductCategory', required: true })
   category: string;
-
   
   @Prop({ type: Types.ObjectId, ref: 'Collection', required: false })
   collection?: string;
@@ -47,3 +48,4 @@ export class Product {
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);
+export type ProductDocument = Product & Document;

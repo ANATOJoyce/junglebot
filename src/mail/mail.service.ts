@@ -35,9 +35,9 @@ export class MailService {
 async sendStoreActivatedEmail(email: string, storeName: string) {
   const subject = 'Votre boutique est maintenant active !';
   const html = `
-    <div style="font-family: Arial, sans-serif; background-color: #f8f9fa; padding: 30px;">
+    <div style="font-family: Arial, sans-serif; background-color: #f8ca00ff; padding: 30px;">
       <div style="max-width: 600px; margin: 0 auto; background: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-        <h1 style="color: #2c7a7b; text-align: center;">Félicitations </h1>
+        <h1 style="color: #ffffffff; text-align: center;">Félicitations </h1>
         <p style="font-size: 16px; color: #333;">Bonjour ,</p>
         <p style="font-size: 16px; color: #333;">
           Votre boutique <strong>${storeName}</strong> est maintenant <span style="color: green; font-weight: bold;">activée</span> !
@@ -52,11 +52,11 @@ async sendStoreActivatedEmail(email: string, storeName: string) {
         </ul>
         <div style="text-align: center; margin-top: 30px;">
           <a href="https://dashboard.jungle.com" 
-             style="background-color: #2c7a7b; color: white; padding: 12px 25px; border-radius: 6px; text-decoration: none; font-size: 16px;">
+             style="background-color: #fad106dc; color: white; padding: 12px 25px; border-radius: 6px; text-decoration: none; font-size: 16px;">
             Accéder à mon tableau de bord
           </a>
         </div>
-        <p style="margin-top: 30px; color: #777; font-size: 14px; text-align: center;">
+        <p style="margin-top: 30px; color: #001226ff; font-size: 14px; text-align: center;">
           Merci de faire partie de la communauté <strong>Jungle </strong>.<br>
           L'équipe Jungle.
         </p>
@@ -91,7 +91,7 @@ async sendStoreActivatedEmail(email: string, storeName: string) {
     <h1>Votre code de vérification</h1>
     <p>Bonjour,</p>
     <p>Voici votre code pour ${type === VerificationType.ACCOUNT ? 'confirmer votre compte' : 'activer votre boutique'} :</p>
-    <h2 style="font-size: 24px; color: #2d89ef;">${code}</h2>
+    <h2 style="font-size: 24px; color: #fae602ff;">${code}</h2>
     <p>Ce code expirera dans 15 minutes.</p>
   `;
 

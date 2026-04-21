@@ -1,112 +1,112 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { Controller, Post, Get, Param, Patch, Delete, Body, Query, NotFoundException, ValidationPipe, UnauthorizedException, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { CustomerService } from './customer.service';
-import { RegisterDto } from './dto/registerCustomer.dto';
-import { CreateCustomerGroupCustomerDto, UpdateCustomerGroupCustomerDto } from './dto/customer-group-customer.dto';
-import { CreateCustomerGroupDto, UpdateCustomerGroupDto } from './dto/customer-group.dto';
+import { CreateCustomerDto } from './dto/create-customer.dto';
+import { UpdateCustomerDto } from './dto/update-customer.dto';
+import { CheckEmailDto } from './dto/check-email.dto';
+import { Customer } from './entities/customer.entity';
+import { AuthenticateCustomerDto } from './dto/authenticate-customer.dto';
+import { OrdersService } from 'src/order/order.service';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { StoreGuard } from 'src/auth/StoreAuthGuard';
+import { StoreService } from 'src/store/store.service';
 
-@Controller('customer')
+@Controller('customers')
 export class CustomerController {
-  constructor(private readonly customerService: CustomerService) {}
+  constructor(private readonly customerService: CustomerService,
+    private readonly orderService: OrdersService,
+  ) {}
 
-  // -----------------------------
-  // CUSTOMER
-  // -----------------------------
-  @Post()
-  create(@Body() dto: RegisterDto) {
-    return this.customerService.register(dto);
+  @Post('create')
+  async createCustomer(@Body() createCustomerDto: CreateCustomerDto) {
+    return this.customerService.createCustomer(createCustomerDto);
   }
 
+   @Get('with-orders')
+async getCustomersWithOrders() {
+  return this.customerService.findCustomersWithOrders();
+}
+  @Post('resend-code')
+resendCode(@Body() body: { email: string }) {
+  return this.customerService.resendVerificationCode(body.email);
+}
+@Post('verify-code')
+@HttpCode(HttpStatus.OK)
+async verifyCode(
+  @Body() body: { email: string; code: string }
+) {
+  return {
+    success: true,
+    ...(await this.customerService.verifyAccountCode(body.email, body.code)),
+  };
+}
+@Post('authenticate')
+@HttpCode(HttpStatus.OK)
+async authenticate(
+  @Body() authenticateDto: AuthenticateCustomerDto,
+) {
+  const { email, password } = authenticateDto;
+
+  const customer = await this.customerService.authenticate(email, password);
+
+  if (!customer) {
+    throw new UnauthorizedException('Email ou mot de passe incorrect');
+  }
+
+  return {
+    success: true,
+    ...customer,
+  };
+}
   @Get()
-  findAll() {
-    return this.customerService.findAll();
+  async findByEmail(@Query(new ValidationPipe({ transform: true })) query: CheckEmailDto): Promise<Customer> {
+    const { email } = query;
+
+    const customer = await this.customerService.findByEmail(email);
+    if (!customer) throw new NotFoundException('Client introuvable');
+
+    return customer;
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.customerService.findOne(+id);
-  }
-/*
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateCustomerDto) {
-    return this.customerService.update(+id, dto);
-  }
-*/
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.customerService.remove(+id);
-  }
-
-  // -----------------------------
-  // CUSTOMER GROUP
-  // -----------------------------
-  @Post('store/:storeId/group')
-  createGroup(@Param('storeId') storeId: string, @Body() dto: CreateCustomerGroupDto) {
-    return this.customerService.createGroup(dto, storeId);
-  }
-
-  @Get('store/:storeId/group')
-  findAllGroups(@Param('storeId') storeId: string) {
-    return this.customerService.findAllGroups(storeId);
-  }
-
-  @Get('store/:storeId/group/:id')
-  findGroup(@Param('storeId') storeId: string, @Param('id') id: string) {
-    return this.customerService.findGroup(id, storeId);
-  }
-
-  @Patch('store/:storeId/group/:id')
-  updateGroup(@Param('storeId') storeId: string, @Param('id') id: string, @Body() dto: UpdateCustomerGroupDto) {
-    return this.customerService.updateGroup(id, storeId, dto);
-  }
-
-  @Delete('store/:storeId/group/:id')
-  removeGroup(@Param('storeId') storeId: string, @Param('id') id: string) {
-    return this.customerService.removeGroup(id, storeId);
-  }
-
-  // -----------------------------
-  // CUSTOMER GROUP CUSTOMER
-  // -----------------------------
-  @Post('store/:storeId/group-customer')
-  createGroupCustomer(@Param('storeId') storeId: string, @Body() dto: CreateCustomerGroupCustomerDto) {
-    return this.customerService.createGroupCustomer(dto, storeId);
-  }
-
-  @Get('store/:storeId/group-customer')
-  findAllGroupCustomers(@Param('storeId') storeId: string) {
-    return this.customerService.findAllGroupCustomers(storeId);
-  }
-
-  @Get('store/:storeId/group-customer/:id')
-  findGroupCustomer(@Param('storeId') storeId: string, @Param('id') id: string) {
-    return this.customerService.findGroupCustomer(id, storeId);
-  }
-
-  @Patch('store/:storeId/group-customer/:id')
-  updateGroupCustomer(@Param('storeId') storeId: string, @Param('id') id: string, @Body() dto: UpdateCustomerGroupCustomerDto) {
-    return this.customerService.updateGroupCustomer(id, storeId, dto);
-  }
-
-  @Delete('store/:storeId/group-customer/:id')
-  removeGroupCustomer(@Param('storeId') storeId: string, @Param('id') id: string) {
-    return this.customerService.removeGroupCustomer(id, storeId);
-  }
-
-  
   @Get()
   async getAllCustomers() {
-    return this.customerService.findAllWithDetails()
+    return this.customerService.getAllCustomers();
+  }
+  
+@Get(':id/orders')
+getCustomerOrders(@Param('id') id: string) {
+  return this.customerService.getCustomerWithOrders(id);
+}
+
+  @Get(':id')
+  async getCustomerById(@Param('id') id: string) {
+    return this.customerService.getCustomerById(id);
   }
 
 
-   @Get()
-  async getCustomers(
-    @Param('storeId') storeId: string,
-    @Query('page') page = '1',
-    @Query('limit') limit = '10',
+
+  @Patch(':id')
+  async updateCustomer(@Param('id') id: string, @Body() updateCustomerDto: UpdateCustomerDto) {
+    return this.customerService.updateCustomer(id, updateCustomerDto);
+  }
+
+  @Delete(':id')
+  async deleteCustomer(@Param('id') id: string) {
+    return this.customerService.deleteCustomer(id);
+  }
+
+    @Get(':customerId/orders')
+  @HttpCode(HttpStatus.OK)
+  async getOrdersByCustomer(@Param('customerId') customerId: string) {
+    return this.orderService.findByCustomer(customerId);
+  }
+  @Patch(':customerId/status')
+  async updateCustomerStatus(
+    @Param('customerId') customerId: string,
+    @Body('status') status: string,
   ) {
-    const pageNumber = parseInt(page, 10);
-    const limitNumber = parseInt(limit, 10);
-    return this.customerService.findAllByStore(storeId, pageNumber, limitNumber);
+    return this.orderService.updateCustomerStatus(customerId, status);
   }
+
+
+
 }

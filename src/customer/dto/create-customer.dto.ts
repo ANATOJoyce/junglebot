@@ -1,30 +1,21 @@
-import { IsNotEmpty, IsOptional, IsString, IsArray } from 'class-validator';
-import { Types } from 'mongoose';
+// src/customer/dto/create-customer.dto.ts
+import { IsString, IsEmail, IsEnum, IsOptional, IsNotEmpty } from 'class-validator';
+import { CustomerStatus } from '../entities/customer.entity';
 
-export class CreateCustomerGroupDto {
+export class CreateCustomerDto {
+  
   @IsString()
-  @IsNotEmpty()
   name: string;
 
-  @IsArray()
+  @IsEmail()
+  email: string;
+
+  @IsEnum(CustomerStatus)
   @IsOptional()
-  customers?: Types.ObjectId[];
+  status?: CustomerStatus; // par défaut NOUVEAU
 
   @IsString()
   @IsNotEmpty()
-  storeId: string; 
-}
+  password: string;
 
-export class UpdateCustomerGroupDto {
-  @IsOptional()
-  @IsString()
-  name?: string;
-
-  @IsArray()
-  @IsOptional()
-  customers?: Types.ObjectId[];
-
-  @IsOptional()
-  @IsString()
-  storeId?: string;
 }

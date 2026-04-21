@@ -51,44 +51,55 @@ export class VerificationCodeService {
 
 
 
- async createVerificationCode(email: string, type: VerificationType): Promise<string> {
-    const user = await this.userModel.findOne({ email });
-    if (!user) throw new NotFoundException('Utilisateur introuvable');
+ async createVerificationCode(
+  email: string,
+  type: VerificationType,
+): Promise<string> {
 
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date();
-    expiresAt.setMinutes(expiresAt.getMinutes() + 15); // 15 min de validité
+  // 🔥 Supprimer les anciens codes du même type
+  await this.verificationCodeModel.deleteMany({ email, type });
 
-    await this.verificationCodeModel.create({
-      user: user._id,
-      code,
-      type,
-      expiresAt,
-    });
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
 
-    return code;
-  }
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 min exactes
+
+  await this.verificationCodeModel.create({
+    email,
+    code,
+    type,
+    expiresAt,
+  });
+
+  return code;
+}
+
 
   /**
    * Vérifie qu’un code est encore valide
    */
-  async verifyCode(email: string, code: string, type: VerificationType): Promise<boolean> {
-    const user = await this.userModel.findOne({ email });
-    if (!user) return false;
+async verifyCode(
+  email: string,
+  code: string,
+  type: VerificationType,
+): Promise<boolean> {
 
-    const verification = await this.verificationCodeModel.findOne({
-      user: user._id,
-      code,
-      type,
-    });
+  const record = await this.verificationCodeModel.findOne({ email, type });
 
-    if (!verification) return false;
-    if (verification.expiresAt < new Date()) return false;
-
-    // Nettoyage après vérification
-    await this.verificationCodeModel.deleteOne({ _id: verification._id });
-
-    return true;
+  if (!record) {
+    throw new Error('Code invalide ou expiré');
   }
+
+  // ⏱️ Expiration
+  if (record.expiresAt.getTime() < Date.now()) {
+    await record.deleteOne();
+    throw new Error('Code expiré');
+  }
+
+
+  // ✅ Succès → suppression
+  await record.deleteOne();
+  return true;
+}
+
 
 }

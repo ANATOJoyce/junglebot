@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { OrdersService } from './order.service';
@@ -19,30 +19,89 @@ export class OrdersController {
   ) {}
 
 
-  @UseGuards(JwtAuthGuard, StoreGuard)
-  @Post(':storeId')
+  @Post('create')
   async createOrder(
-    @Param('storeId') storeId: string,
-    @Body() createOrderDto: CreateOrderDto
+    @Body('customerId') customerId: string,
+    @Body('sessionId') sessionId: string
   ) {
-    return this.ordersService.createOrderInStore(createOrderDto, storeId);
+    return this.ordersService.createOrder(customerId, sessionId);
+  }
+
+  @UseGuards(JwtAuthGuard, StoreGuard)
+ @Get('store/:storeId/stats')
+  async getStoreStats(
+    @Param('storeId') storeId: string,
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.ordersService.getStoreStats(storeId, {  status, startDate, endDate });
   }
 
 
+
+@UseGuards(JwtAuthGuard,StoreGuard)
+@Roles(Role.ADMIN, Role.VENDOR)
+@Get('store/:storeId')
+async getOrdersByStore(
+  @Req() req,
+  @Query('page') page: string,
+  @Query('limit') limit: string,
+  @Query('search') search: string,
+  @Query('status') status: string,
+  @Query('startDate') startDate: string,
+  @Query('endDate') endDate: string
+) {
+  const storeId = req.user.storeId; // depuis JWT
+  return this.ordersService.getOrdersByStore(storeId, {
+    page: parseInt(page) || 1,
+    limit: parseInt(limit) || 20,
+    search,
+    status,
+    startDate,
+    endDate
+  });
+}
+
+
+ @UseGuards(JwtAuthGuard, StoreGuard)
+  @Get(':orderId')
+  async getOrderById(@Param('orderId') orderId: string) {
+    return this.ordersService.getOrderById(orderId);
+  }
+
+
+  @Patch(':id/status')
+  async updateOrderStatus(
+    @Param('id') id: string,
+    @Body() dto: UpdateOrderStatusDto
+  ) {
+    const updated = await this.ordersService.updateOrderStatus(id, dto.status);
+    return { order: updated };
+  }
+
   @UseGuards(JwtAuthGuard, StoreGuard)
-  @Roles(Role.ADMIN, Role.VENDOR, Role.CUSTOMER)
-  @Get('store/:storeId')
-  async getOrdersByStore(
+  @Get('store/:storeId/customers')
+  async getCustomersByStore(
     @Param('storeId') storeId: string,
     @Query('page') page = '1',
     @Query('limit') limit = '10',
+    @Query('search') search?: string,
+    @Query('type') type?: string,
   ) {
-    const pageNumber = parseInt(page, 10);
-    const limitNumber = parseInt(limit, 10);
-
-    return await this.ordersService.findAllByStorePaginated(storeId, pageNumber, limitNumber);
+    return this.ordersService.getCustomersByStore(storeId, {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      search,
+      type,
+    });
   }
 
+ @Get('customer/:customerId')
+getOrdersByCustomer(@Param('customerId') customerId: string) {
+  return this.ordersService.getOrdersByCustomer(customerId);
+}
 
   @Get()
   findAll(): Promise<Order[]> {
@@ -50,11 +109,8 @@ export class OrdersController {
   }
 
 
-@Get(':id')
-async findOne(@Param('id') id: string) {
-  const order = await this.ordersService.findOne(id);
-  return { order }; 
-}
+
+
 
 
   @Put(':id')
@@ -67,14 +123,8 @@ async findOne(@Param('id') id: string) {
     return this.ordersService.remove(id);
   }
 
-    @Patch(':id/status')
-  async updateOrderStatus(
-    @Param('id') id: string,
-    @Body() dto: UpdateOrderStatusDto
-  ) {
-    const updated = await this.ordersService.updateStatus(id, dto.status);
-    return { order: updated };
-  }
+  
+
 
 /*
   @Patch(':id/notify')
@@ -89,13 +139,5 @@ async notifyCustomer(@Param('id') id: string) {
 }*/
 
 
-  @Get('store/:storeId/customers')
-  async getCustomersByStore(
-    @Param('storeId') storeId: string,
-    @Query('page') page = 1,
-    @Query('limit') limit = 12,
-  ) {
-    return this.customerService.findAllByStore(storeId, Number(page), Number(limit));
-  }
 
 }

@@ -28,7 +28,7 @@ async getAmountOffProductPromotions(@Param('storeId') storeId: string) {
 }
 
 
-  @UseGuards(JwtAuthGuard, StoreGuard)
+@UseGuards(JwtAuthGuard, StoreGuard)
 @Post('conditions/:storeId')
 async createCondition(@Body() dto: CreatePromotionConditionDto) {
   return this.promotionService.createPromotionCondition(dto);
@@ -111,6 +111,7 @@ async findAll(@Req() req) {
   const storeId = req.user.store;
   return this.promotionService.findAllByStore(storeId);
 }
+
 
 /*
 

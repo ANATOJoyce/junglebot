@@ -4,3 +4,4 @@ export enum ProductStatus {
   PUBLISHED = 'published',
   REJECTED = 'rejected',
 }
+

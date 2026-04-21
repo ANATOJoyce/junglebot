@@ -11,9 +11,8 @@ export enum VerificationType {
 @Schema({ timestamps: true })
 export class VerificationCode extends Document {
     
- @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false })
- user?: User;
-
+  @Prop({ required: true })
+  email: string;  // on stocke directement l'email du Customer
 
   @Prop({ required: true })
   code: string;
@@ -21,7 +20,7 @@ export class VerificationCode extends Document {
   @Prop({ required: true, enum: VerificationType })
   type: VerificationType;
 
-  @Prop({ required: true })
+  @Prop({  expires: 60 })
   expiresAt: Date;
 }
 export type VerificationCodeDocument = VerificationCode & Document;
